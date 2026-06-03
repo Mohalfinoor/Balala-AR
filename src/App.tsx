@@ -305,7 +305,18 @@ const ARView = ({ product, onBack }: { product: Product | null; onBack: () => vo
   const [gyroPermission, setGyroPermission] = useState<'prompt' | 'granted' | 'denied' | 'unsupported'>('prompt');
   
   const initialOrientationRef = useRef<{ alpha: number; beta: number; gamma: number } | null>(null);
-  const [currentOrientation, setCurrentOrientation] = useState<{ alpha: number; beta: number; gamma: number } | null>(null);
+  
+  // Real-time target offsets in refs to bypass high frequency state sets
+  const targetGyroXRef = useRef<number>(0);
+  const targetGyroYRef = useRef<number>(0);
+
+  // Smooth visual state to prevent jittering/shaking
+  const [smoothGyro, setSmoothGyro] = useState<{ x: number; y: number; tiltX: number; tiltY: number }>({
+    x: 0,
+    y: 0,
+    tiltX: 0,
+    tiltY: 0
+  });
 
   // Position, scale, rotation of the item
   const [basePosition, setBasePosition] = useState({ x: 0, y: 40 });
@@ -365,7 +376,7 @@ const ARView = ({ product, onBack }: { product: Product | null; onBack: () => vo
     }
   }, []);
 
-  // 4. Orientation listener logic
+  // 4. Orientation listener logic (populates target offsets in refs to bypass high-frequency react state re-renders)
   useEffect(() => {
     if (!gyroEnabled) return;
 
@@ -377,16 +388,86 @@ const ARView = ({ product, onBack }: { product: Product | null; onBack: () => vo
         initialOrientationRef.current = { alpha: e.alpha, beta: e.beta, gamma: e.gamma || 0 };
       }
 
-      setCurrentOrientation({
-        alpha: e.alpha,
-        beta: e.beta,
-        gamma: e.gamma || 0
-      });
+      let dAlpha = e.alpha - initialOrientationRef.current.alpha;
+      if (dAlpha > 180) dAlpha -= 360;
+      if (dAlpha < -180) dAlpha += 360;
+
+      let dBeta = e.beta - initialOrientationRef.current.beta;
+      if (dBeta > 180) dBeta -= 360;
+      if (dBeta < -180) dBeta += 360;
+
+      // Pixel per degree coefficients
+      const sensitivityX = 18;
+      const sensitivityY = 22;
+
+      // Save instantly into refs. This prevents 60+ Hz state re-render drops and avoids micro-jitter from native sensor fluctuations
+      targetGyroXRef.current = dAlpha * sensitivityX;
+      targetGyroYRef.current = dBeta * sensitivityY;
     };
 
     window.addEventListener('deviceorientation', handleOrientation);
     return () => {
       window.removeEventListener('deviceorientation', handleOrientation);
+    };
+  }, [gyroEnabled]);
+
+  // 5. Cinematic requestAnimationFrame loop for ultra-smooth Lerp interpolation/damping
+  useEffect(() => {
+    if (!gyroEnabled) return;
+
+    let rAFId: number;
+    
+    const updateSmoothPosition = () => {
+      setSmoothGyro((prev) => {
+        // Calculate the difference between current visual state and target ref
+        const diffX = targetGyroXRef.current - prev.x;
+        const diffY = targetGyroYRef.current - prev.y;
+
+        // Apply visual damping (take 10% of distance every frame for maximum buttery smoothness)
+        const lerpFactor = 0.10;
+
+        // Snapping thresholds to avoid infinite microscopic floating calculations
+        const nextX = Math.abs(diffX) < 0.05 ? targetGyroXRef.current : prev.x + diffX * lerpFactor;
+        const nextY = Math.abs(diffY) < 0.05 ? targetGyroYRef.current : prev.y + diffY * lerpFactor;
+
+        // Calculate subtle wall-adherence 3D perspective tilts based on current visual coordinate offsets
+        const rawTiltX = -targetGyroYRef.current * 0.06;
+        const rawTiltY = -targetGyroXRef.current * 0.06;
+
+        // Clamp tilts between -22 and 22 degrees to prevent extreme artwork inversion
+        const targetTiltX = Math.max(-22, Math.min(22, rawTiltX));
+        const targetTiltY = Math.max(-22, Math.min(22, rawTiltY));
+
+        const diffTiltX = targetTiltX - prev.tiltX;
+        const diffTiltY = targetTiltY - prev.tiltY;
+
+        const nextTiltX = Math.abs(diffTiltX) < 0.05 ? targetTiltX : prev.tiltX + diffTiltX * lerpFactor;
+        const nextTiltY = Math.abs(diffTiltY) < 0.05 ? targetTiltY : prev.tiltY + diffTiltY * lerpFactor;
+
+        // Skip render updates if change is virtually imperceptible
+        if (
+          Math.abs(prev.x - nextX) < 0.01 && 
+          Math.abs(prev.y - nextY) < 0.01 &&
+          Math.abs(prev.tiltX - nextTiltX) < 0.01 &&
+          Math.abs(prev.tiltY - nextTiltY) < 0.01
+        ) {
+          return prev;
+        }
+
+        return {
+          x: nextX,
+          y: nextY,
+          tiltX: nextTiltX,
+          tiltY: nextTiltY
+        };
+      });
+
+      rAFId = requestAnimationFrame(updateSmoothPosition);
+    };
+
+    rAFId = requestAnimationFrame(updateSmoothPosition);
+    return () => {
+      cancelAnimationFrame(rAFId);
     };
   }, [gyroEnabled]);
 
@@ -417,7 +498,9 @@ const ARView = ({ product, onBack }: { product: Product | null; onBack: () => vo
   // Re-pin baseline and capture orientation angles
   const calibrateAnchor = () => {
     initialOrientationRef.current = null;
-    setCurrentOrientation(null);
+    targetGyroXRef.current = 0;
+    targetGyroYRef.current = 0;
+    setSmoothGyro({ x: 0, y: 0, tiltX: 0, tiltY: 0 });
     setIsScanning(true);
     setTimeout(() => setIsScanning(false), 1500);
   };
@@ -445,26 +528,8 @@ const ARView = ({ product, onBack }: { product: Product | null; onBack: () => vo
   };
 
   // Compute calculated anchor displacement coordinates
-  let gyroX = 0;
-  let gyroY = 0;
-
-  if (gyroEnabled && initialOrientationRef.current && currentOrientation) {
-    let dAlpha = currentOrientation.alpha - initialOrientationRef.current.alpha;
-    if (dAlpha > 180) dAlpha -= 360;
-    if (dAlpha < -180) dAlpha += 360;
-
-    let dBeta = currentOrientation.beta - initialOrientationRef.current.beta;
-    if (dBeta > 180) dBeta -= 360;
-    if (dBeta < -180) dBeta += 360;
-
-    // Pixel per degree coefficients
-    const sensitivityX = 18;
-    const sensitivityY = 22;
-
-    // Invert so the model stays in place in 3D scene relative to phone movement
-    gyroX = dAlpha * sensitivityX;
-    gyroY = dBeta * sensitivityY;
-  }
+  const gyroX = gyroEnabled ? smoothGyro.x : 0;
+  const gyroY = gyroEnabled ? smoothGyro.y : 0;
 
   const posX = basePosition.x + gyroX;
   const posY = basePosition.y + gyroY;
@@ -564,9 +629,11 @@ const ARView = ({ product, onBack }: { product: Product | null; onBack: () => vo
             </div>
 
             <div 
-              className="relative group transition-transform duration-100"
+              className="relative group"
               style={{
-                transform: `rotate(${rotation}deg) scale(${scale})`,
+                transform: `rotate(${rotation}deg) scale(${scale}) perspective(1200px) rotateX(${gyroEnabled ? smoothGyro.tiltX : 0}deg) rotateY(${gyroEnabled ? smoothGyro.tiltY : 0}deg)`,
+                transformStyle: 'preserve-3d',
+                transition: 'transform 0.15s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
               }}
             >
               {/* Product Frame Shadow */}
