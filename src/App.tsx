@@ -462,7 +462,7 @@ const ARView = ({ product, onBack }: { product: Product | null; onBack: () => vo
     const sensitivityY = 22;
 
     // Invert so the model stays in place in 3D scene relative to phone movement
-    gyroX = -dAlpha * sensitivityX;
+    gyroX = dAlpha * sensitivityX;
     gyroY = dBeta * sensitivityY;
   }
 
