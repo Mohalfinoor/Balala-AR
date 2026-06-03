@@ -1,0 +1,7 @@
+{
+  "name": "Remix: Remix: Balla-AR",
+  "description": "Premium AR furniture app showcasing South Sulawesi cultural heritage.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
