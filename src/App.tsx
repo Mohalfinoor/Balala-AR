@@ -76,12 +76,15 @@ const CULTURES: Culture[] = [
     name: 'Toraja', 
     icon: (
       <div className="w-8 h-8 flex items-center justify-center">
-        <div className="grid grid-cols-2 gap-0.5">
-          <div className="w-2.5 h-2.5 bg-current opacity-85" />
-          <div className="w-2.5 h-2.5 bg-current opacity-40" />
-          <div className="w-2.5 h-2.5 bg-current opacity-40" />
-          <div className="w-2.5 h-2.5 bg-current opacity-85" />
-        </div>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-7 h-7">
+          {/* Curved Tongkonan boat-shaped roof */}
+          <path d="M2 8C6.5 10.5 17.5 10.5 22 8V5C17.5 7.5 6.5 7.5 2 5V8Z" fill="currentColor" fillOpacity="0.25" />
+          {/* Front support columns and center beam */}
+          <path d="M6 8v9M18 8v9M12 9v8" strokeWidth="1.5" />
+          {/* Decorative Toraja traditional horizontal planks */}
+          <path d="M10 12h4M10 14h4" strokeWidth="1" />
+          <path d="M4 17h16" />
+        </svg>
       </div>
     ),
     pattern: 'bg-teal-700'
@@ -91,7 +94,14 @@ const CULTURES: Culture[] = [
     name: 'Bugis', 
     icon: (
       <div className="w-8 h-8 flex items-center justify-center">
-        <div className="w-6 h-6 border-2 border-current rounded-full border-t-transparent animate-spin-slow" />
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6">
+          {/* Diamond badge shape representing standard geometric Lipaq Sabbe pattern */}
+          <rect x="5" y="5" width="14" height="14" rx="2" transform="rotate(45 12 12)" fill="currentColor" fillOpacity="0.25" />
+          {/* Intersecting weaving lines (woven silk checks) */}
+          <path d="M12 2v20M2 12h22" strokeWidth="1.5" strokeDasharray="1 1" />
+          {/* Star symbol representation in the center */}
+          <path d="M12 9v6M9 12h6" strokeWidth="1.5" />
+        </svg>
       </div>
     ),
     pattern: 'bg-amber-600'
@@ -101,7 +111,14 @@ const CULTURES: Culture[] = [
     name: 'Makassar', 
     icon: (
       <div className="w-8 h-8 flex items-center justify-center">
-        <div className="w-0 h-0 border-l-[12px] border-l-transparent border-r-[12px] border-r-transparent border-b-[20px] border-b-current" />
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="w-7 h-7">
+          {/* Majestic multi-sailed Phinisi schooner with its seven sails */}
+          <path d="M8 3v8H3l5-8ZM15 2v9h-4l4-9ZM15 4v7l4-7h-4Z" fill="currentColor" fillOpacity="0.25" />
+          {/* Solid hull of the vessel */}
+          <path d="M21 11.5c-3 1-15 1-18 0l2 2.5h14l2-2.5Z" fill="currentColor" />
+          {/* ocean wave ripples underneath */}
+          <path d="M1 16.5c3-1 5 1 8 0c3-1 5 1 8 0c3-1 5 1 6 0" strokeWidth="1.2" />
+        </svg>
       </div>
     ),
     pattern: 'bg-red-700'
@@ -111,10 +128,15 @@ const CULTURES: Culture[] = [
     name: 'Mandar', 
     icon: (
       <div className="w-8 h-8 flex items-center justify-center">
-        <div className="w-6 h-4 border-2 border-current flex flex-col justify-between">
-          <div className="w-full h-0.5 bg-current" />
-          <div className="w-full h-0.5 bg-current" />
-        </div>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="w-7 h-7">
+          {/* Slender single triangular lateen sail of the Sandeq outrigger */}
+          <path d="M11 2L4 12h7V2Z" fill="currentColor" fillOpacity="0.25" />
+          {/* Extremely sleek hull of the boat */}
+          <path d="M2 13h18l-2 1.5H4L2 13Z" fill="currentColor" />
+          {/* Floating bamboo outrigger stabilizers (CADIK) */}
+          <path d="M5 13v2.5M17 13v2.5" />
+          <path d="M1 17h21" strokeWidth="1.5" />
+        </svg>
       </div>
     ),
     pattern: 'bg-indigo-800'
