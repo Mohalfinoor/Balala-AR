@@ -175,7 +175,7 @@ export default function AddProductModal({
           </span>
           <h3 className="text-lg font-serif font-bold mt-2">Tambah Produk Warisan Baru</h3>
           <p className="text-[11px] text-zinc-300 mt-1">
-            Isi detail produk untuk didaftarkan ke pameran digital Balala AR.
+            Isi detail produk untuk didaftarkan ke pameran digital Balla AR.
           </p>
         </div>
 

@@ -13,7 +13,7 @@ export const Logo: React.FC<LogoProps> = ({ className = 'w-10 h-10', imgClassNam
     >
       <img 
         src={balalaLogo} 
-        alt="Balala AR Logo" 
+        alt="Balla AR Logo" 
         className={imgClassName} 
         referrerPolicy="no-referrer"
       />

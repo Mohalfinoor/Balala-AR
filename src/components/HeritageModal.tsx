@@ -140,7 +140,7 @@ export default function HeritageModal({ isOpen, onClose }: HeritageModalProps) {
           </button>
           
           <span className="text-[10px] bg-white/20 px-2 py-0.5 rounded-full uppercase tracking-wider font-bold mb-2 inline-block">
-            Kamus Budaya Balala AR
+            Kamus Budaya Balla AR
           </span>
           <h2 className="text-xl sm:text-2xl font-serif font-bold tracking-tight">{currentTopic.name}</h2>
           <p className="text-[11px] text-teal-100/80 italic mt-1 font-serif">"{currentTopic.motto}"</p>

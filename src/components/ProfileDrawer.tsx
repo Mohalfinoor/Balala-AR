@@ -440,7 +440,7 @@ export default function ProfileDrawer({
                 <>
                   <Logo className="w-14 h-14 border-slate-700 bg-slate-800" />
                   <div>
-                    <h2 className="text-base font-bold font-serif">Selamat Datang di Balala AR</h2>
+                    <h2 className="text-base font-bold font-serif">Selamat Datang di Balla AR</h2>
                     <p className="text-[11px] text-slate-400">Silakan Hubungkan Akun Google</p>
                   </div>
                 </>
@@ -523,7 +523,7 @@ export default function ProfileDrawer({
 
                   <div className="flex items-center justify-center gap-1.5 text-[10px] text-slate-400">
                     <span className="w-1.5 h-1.5 rounded-full bg-teal-500" />
-                    <span>Layanan Otentikasi Balala AR Terenkripsi</span>
+                    <span>Layanan Otentikasi Balla AR Terenkripsi</span>
                   </div>
                 </div>
               </div>
@@ -571,7 +571,7 @@ export default function ProfileDrawer({
                     </div>
 
                     <p className="text-[10px] text-slate-350 leading-relaxed font-sans">
-                      Sebagai perwakilan resmi Komite Penasihat Balala AR tingkat pusat, Anda memegang hak prerogatif penuh untuk menyetujui atau menolak pendaftaran pengrajin Sanggar Suku baru sebelum mereka diizinkan berdagang.
+                      Sebagai perwakilan resmi Komite Penasihat Balla AR tingkat pusat, Anda memegang hak prerogatif penuh untuk menyetujui atau menolak pendaftaran pengrajin Sanggar Suku baru sebelum mereka diizinkan berdagang.
                     </p>
 
                     {/* Pending applicants list */}
@@ -800,7 +800,7 @@ export default function ProfileDrawer({
                                 <span>Simulasi Admin Perusahaan</span>
                               </div>
                               <p className="text-[10px] text-zinc-400 leading-snug">
-                                Untuk menyimulasikan persetujuan instan dari pihak perusahaan Balala AR selaku pemilik platform, klik tombol konfirmasi di bawah ini:
+                                Untuk menyimulasikan persetujuan instan dari pihak perusahaan Balla AR selaku pemilik platform, klik tombol konfirmasi di bawah ini:
                               </p>
                               <button
                                 type="button"
@@ -901,7 +901,7 @@ export default function ProfileDrawer({
                               <span className="text-xl">🛡️</span>
                             </div>
                             <p className="text-[9.5px] text-slate-400 italic">
-                              ✓ Anda masuk otomatis sebagai Kurator Balala AR. Panel Kurasi Khusus kini aktif di halaman utama untuk menyeleksi produk baru dari para pengrajin.
+                              ✓ Anda masuk otomatis sebagai Kurator Balla AR. Panel Kurasi Khusus kini aktif di halaman utama untuk menyeleksi produk baru dari para pengrajin.
                             </p>
                           </div>
                         ) : (
@@ -909,7 +909,7 @@ export default function ProfileDrawer({
                             <div className="p-3 bg-indigo-50/45 border border-indigo-100 rounded-xl text-xs">
                               <p className="font-semibold text-indigo-950">Ujicoba Mode Kurator</p>
                               <p className="text-[10px] text-slate-500 mt-1 leading-snug">
-                                Beralih peran menjadi perwakilan Admin/Komite Kurator Balala AR untuk menyaring produk baru yang diajukan oleh sanggar.
+                                Beralih peran menjadi perwakilan Admin/Komite Kurator Balla AR untuk menyaring produk baru yang diajukan oleh sanggar.
                               </p>
                             </div>
                             <button

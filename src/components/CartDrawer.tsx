@@ -69,7 +69,7 @@ export default function CartDrawer({
   const handleWhatsAppCheckout = () => {
     // Generate pre-filled message detailing order for artisan
     const itemList = cartItems.map(item => `- ${item.product.name} (x${item.quantity}) @ ${item.product.price}`).join('%0A');
-    const text = `Halo%20Balala%20AR!%0A%0ASaya%20tertarik%20untuk%20memesan%20furniture%20warisan%20kebudayaan%20berikut:%0A${itemList}%0A%0A*Total%20Order:*%20${formatPrice(grandTotal)}%0A*Alamat%20Pengiriman:*%20${encodeURIComponent(address)}%0A*Catatan:*%20${encodeURIComponent(notes || '-')}%0A%0AMohon%20konfirmasi%20pembayaran%20dan%20estimasi%20pengerjaannya.%20Terima%20kasih!`;
+    const text = `Halo%20Balla%20AR!%0A%0ASaya%20tertarik%20untuk%20memesan%20furniture%20warisan%20kebudayaan%20berikut:%0A${itemList}%0A%0A*Total%20Order:*%20${formatPrice(grandTotal)}%0A*Alamat%20Pengiriman:*%20${encodeURIComponent(address)}%0A*Catatan:*%20${encodeURIComponent(notes || '-')}%0A%0AMohon%20konfirmasi%20pembayaran%20dan%20estimasi%20pengerjaannya.%20Terima%2520kasih!`;
     window.open(`https://wa.me/628123456789?text=${text}`, '_blank');
   };
 

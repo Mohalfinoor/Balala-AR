@@ -905,7 +905,7 @@ const Header = ({
               className="w-10 h-10 cursor-pointer active:scale-95 hover:brightness-105"
             />
             <div onClick={onHomeClick} className="cursor-pointer">
-              <h1 className="text-xl font-bold tracking-tight text-teal-900 font-serif hover:text-teal-700 transition-colors">Balala AR</h1>
+              <h1 className="text-xl font-bold tracking-tight text-teal-900 font-serif hover:text-teal-700 transition-colors">Balla AR</h1>
               <p className="text-[9px] text-slate-400 uppercase tracking-widest font-semibold">South Sulawesi Heritage Interiors</p>
             </div>
           </div>
@@ -950,7 +950,7 @@ const Header = ({
                   ) : (
                     <div className="px-2.5 py-2 border-b border-slate-50 mb-1">
                       <p className="text-xs font-bold text-slate-800">Menunggu Masuk</p>
-                      <p className="text-[9.5px] text-slate-400 font-medium">Balala AR Guest Mode</p>
+                      <p className="text-[9.5px] text-slate-400 font-medium">Balla AR Guest Mode</p>
                     </div>
                   )}
                   
@@ -1506,7 +1506,7 @@ export default function App() {
         tagColor: action === 'approve' ? 'teal' : 'rose',
         title: action === 'approve' ? `Karya Disetujui: ${targetProduct.name}` : `Karya Ditangguhkan: ${targetProduct.name}`,
         desc: action === 'approve' 
-          ? `Produk seni hias "${targetProduct.name}" dari Suku ${targetProduct.culture} dinyatakan OTENTIK oleh Kurasi Adat Balala AR & resmi dirilis ke galeri publik.` 
+          ? `Produk seni hias "${targetProduct.name}" dari Suku ${targetProduct.culture} dinyatakan OTENTIK oleh Kurasi Adat Balla AR & resmi dirilis ke galeri publik.` 
           : `Produk "${targetProduct.name}" Suku ${targetProduct.culture} ditangguhkan oleh komite kurator untuk revisi nilai filosofisnya.`,
         unread: true
       };
@@ -1797,7 +1797,7 @@ export default function App() {
                     <div className="space-y-1.5">
                       <div className="flex items-center gap-2">
                         <div className="p-1 px-2.5 bg-indigo-500/15 border border-indigo-500/25 text-amber-300 font-extrabold rounded-full text-[9px] uppercase tracking-wider font-sans">
-                          🛡️ Panel Kurator Adat Balala AR
+                          🛡️ Panel Kurator Adat Balla AR
                         </div>
                         <span className="text-[10px] text-zinc-400 font-semibold font-mono flex items-center gap-1">
                           <CheckCircle2 size={10} className="text-teal-400" /> KOMITE EVALUASI ADAT
