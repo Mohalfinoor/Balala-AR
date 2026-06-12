@@ -197,7 +197,7 @@ export default function AddProductModal({
               placeholder="Contoh: Meja Hias Saqbe Saoraja"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full bg-slate-50 border border-slate-150 rounded-xl px-3 py-2.5 text-xs focus:ring-1 focus:ring-teal-600/30 transition-all outline-none"
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs focus:ring-1 focus:ring-teal-600/30 transition-all outline-none"
             />
           </div>
 
@@ -207,7 +207,7 @@ export default function AddProductModal({
             <select
               value={productCulture}
               onChange={(e) => setProductCulture(e.target.value)}
-              className="w-full bg-slate-50 border border-slate-150 rounded-xl px-3 py-2.5 text-xs focus:ring-1 focus:ring-teal-600/30 font-semibold text-slate-750 cursor-pointer"
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs focus:ring-1 focus:ring-teal-600/30 font-semibold text-slate-700 cursor-pointer"
             >
               <option value="Toraja">Suku Toraja</option>
               <option value="Bugis">Suku Bugis</option>
@@ -226,7 +226,7 @@ export default function AddProductModal({
                 placeholder="Contoh: 5450000"
                 value={priceNumber}
                 onChange={(e) => handlePriceChange(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-150 rounded-xl px-3 py-2.5 text-xs font-mono focus:ring-1 focus:ring-teal-600/30 transition-all outline-none"
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs font-mono focus:ring-1 focus:ring-teal-600/30 transition-all outline-none"
               />
             </div>
             <div className="bg-slate-50 border border-dashed border-slate-200 rounded-xl p-2.5 h-[38px] flex items-center justify-center font-bold text-teal-800 text-xs">
@@ -272,7 +272,7 @@ export default function AddProductModal({
                       setImageUrl(preset.url);
                       setError('');
                     }}
-                    className={`flex items-center gap-2 p-1.5 rounded-lg border text-left transition-all hover:bg-slate-50 cursor-pointer ${imageUrl === preset.url ? 'border-teal-600 bg-teal-50/20' : 'border-slate-150 bg-slate-50/40'}`}
+                    className={`flex items-center gap-2 p-1.5 rounded-lg border text-left transition-all hover:bg-slate-50 cursor-pointer ${imageUrl === preset.url ? 'border-teal-600 bg-teal-50/20' : 'border-slate-200 bg-slate-50/40'}`}
                   >
                     <img
                       src={preset.url}
@@ -331,7 +331,7 @@ export default function AddProductModal({
                   setImageUrl(e.target.value);
                   setError('');
                 }}
-                className="w-full bg-slate-50 border border-slate-150 rounded-xl px-3 py-2.5 text-xs focus:ring-1 focus:ring-teal-600/30 transition-all outline-none mt-1"
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs focus:ring-1 focus:ring-teal-600/30 transition-all outline-none mt-1"
               />
             )}
           </div>
@@ -342,10 +342,10 @@ export default function AddProductModal({
             <textarea
               required
               rows={3}
-              placeholder="Deskripsikan material kayu, pengerjaan ukiran, dan kualitas finishing furnitur..."
+              placeholder="Deskripsikan material kayu, pengerjaan ukiran, and kualitas finishing furnitur..."
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              className="w-full bg-slate-50 border border-slate-150 rounded-xl px-3 py-2 text-xs focus:ring-1 focus:ring-teal-600/30 transition-all outline-none resize-none"
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs focus:ring-1 focus:ring-teal-600/30 transition-all outline-none resize-none"
             />
           </div>
 
@@ -363,7 +363,7 @@ export default function AddProductModal({
               placeholder="Nilai kearifan lokal dibalik karya seni ukiran atau motif ornamen tenun..."
               value={philosophy}
               onChange={(e) => setPhilosophy(e.target.value)}
-              className="w-full bg-slate-50 border border-slate-150 rounded-xl px-3 py-2 text-xs focus:ring-1 focus:ring-teal-600/30 transition-all outline-none resize-none"
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs focus:ring-1 focus:ring-teal-600/30 transition-all outline-none resize-none"
             />
           </div>
 

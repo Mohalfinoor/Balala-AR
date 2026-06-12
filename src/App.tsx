@@ -32,12 +32,12 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 
 // --- Product Asset Imports ---
-import torajaChairImage from './assets/images/toraja_chair_pareppo_1780513206751.png';
-import bugisWardrobeImage from './assets/images/bugis_wardrobe_sulur_1780513220910.png';
-import torajaTableImage from './assets/images/toraja_table_passura_1780513234957.png';
-import makassarCabinetImage from './assets/images/makassar_cabinet_phinisi_1780513248734.png';
-import mandarSofaImage from './assets/images/mandar_sofa_saqbe_1780513263910.png';
-import bugisBuffetImage from './assets/images/bugis_buffet_kaligrafi_1780513278698.png';
+import torajaChairImage from './assets/images/toraja_chair_1781263138778.jpg';
+import bugisWardrobeImage from './assets/images/bugis_wardrobe_1781263155490.jpg';
+import torajaTableImage from './assets/images/toraja_table_1781263167340.jpg';
+import makassarCabinetImage from './assets/images/makassar_cabinet_truly_clean_1781266903181.jpg';
+import mandarSofaImage from './assets/images/mandar_sofa_1781263192650.jpg';
+import bugisBuffetImage from './assets/images/bugis_buffet_1781263208294.jpg';
 
 // --- Custom Modular Drawers & Modals ---
 import Logo from './components/Logo';
@@ -357,6 +357,66 @@ const ProductDetailView = ({
 const ARView = ({ product, onBack }: { product: Product | null; onBack: () => void; key?: string }) => {
   const [isScanning, setIsScanning] = useState(true);
   const [showStory, setShowStory] = useState(false);
+  const [processedImage, setProcessedImage] = useState<string | null>(null);
+
+  // Dynamic Background Chroma Keyer to remove light/studio backgrounds in AR mode
+  useEffect(() => {
+    if (!product) return;
+    setProcessedImage(null);
+
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      try {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.naturalWidth;
+        canvas.height = img.naturalHeight;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          setProcessedImage(product.image);
+          return;
+        }
+        ctx.drawImage(img, 0, 0);
+        const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const data = imgData.data;
+
+        // Strip whitish-gray background or studio lighting
+        for (let i = 0; i < data.length; i += 4) {
+          const r = data[i];
+          const g = data[i + 1];
+          const b = data[i + 2];
+
+          const maxVal = Math.max(r, g, b);
+          const minVal = Math.min(r, g, b);
+          const diff = maxVal - minVal;
+          const avg = (r + g + b) / 3;
+
+          // If the pixel belongs to a light grayish or white studio backdrop
+          if (avg > 150) {
+            // Small color channel differences (gray/white desaturation) or extreme brightness
+            if (diff < 55 || avg > 230) {
+              if (avg > 195) {
+                data[i + 3] = 0; // Completely transparent
+              } else {
+                // Smooth progressive gradient transition at the edges
+                const ratio = (avg - 150) / (195 - 150);
+                data[i + 3] = Math.max(0, Math.round((1 - ratio) * 255));
+              }
+            }
+          }
+        }
+        ctx.putImageData(imgData, 0, 0);
+        setProcessedImage(canvas.toDataURL('image/png'));
+      } catch (err) {
+        console.warn("Chroma keying failed, falling back to original source image:", err);
+        setProcessedImage(product.image);
+      }
+    };
+    img.onerror = () => {
+      setProcessedImage(product.image);
+    };
+    img.src = product.image;
+  }, [product]);
 
   const isInIframe = typeof window !== 'undefined' && window.self !== window.top;
 
@@ -596,16 +656,8 @@ const ARView = ({ product, onBack }: { product: Product | null; onBack: () => vo
           </div>
         )}
         
-        {/* Modern Interactive Grid Overlay */}
-        <div className="absolute inset-x-0 bottom-0 h-2/3 pointer-events-none opacity-20" 
-             style={{ 
-               backgroundImage: 'radial-gradient(circle, rgba(255,255,255,0.2) 1px, transparent 1px)', 
-               backgroundSize: '36px 36px',
-               transform: 'perspective(600px) rotateX(60deg) translateY(50px) scale(1.6)',
-               transformOrigin: 'bottom center'
-             }} 
-        />
-
+        {/* Modern Interactive Grid Overlay removed to prevent background clutter */}
+        
         {/* 3D Model Simulated Interactive Module */}
         {!isScanning && product && (
           <div 
@@ -620,37 +672,27 @@ const ARView = ({ product, onBack }: { product: Product | null; onBack: () => vo
               transform: 'translate(-50%, -50%)',
             }}
           >
-            {/* Holographic Anchor Ground Target */}
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 mt-20 pointer-events-none flex flex-col items-center">
-              <div className="w-32 h-10 border-2 border-dashed border-teal-400/40 rounded-full scale-y-40 animate-pulse flex items-center justify-center">
-                <div className="w-16 h-5 bg-teal-400/10 rounded-full" />
-              </div>
-              <div className="w-0.5 h-16 bg-gradient-to-t from-teal-400/65 to-transparent border-l border-dashed border-teal-400/40 -mt-5" />
-            </div>
+            {/* Holographic Anchor Ground Target removed to strictly display only the product object */}
 
             <div 
-              className="relative group transition-transform duration-100"
+              className="relative group transition-transform duration-100 flex items-center justify-center"
               style={{
                 transform: `rotate(${rotation}deg) scale(${scale})`,
               }}
             >
-              {/* Product Frame Shadow */}
-              <div className="absolute -bottom-5 left-1/2 -translate-x-1/2 w-48 h-8 bg-black/45 blur-lg rounded-full scale-y-50" />
+              {/* Soft ground shadow beneath product */}
+              <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 w-44 h-6 bg-black/35 blur-md rounded-full scale-y-45 mix-blend-multiply pointer-events-none" />
               
-              {/* Product Render Image */}
+              {/* Product Render Image with canvas-processed alpha transparent transparency */}
               <img 
-                src={product.image} 
+                src={processedImage || product.image} 
                 alt={product.name} 
-                className="w-full h-full max-h-60 object-contain drop-shadow-[0_25px_20px_rgba(0,0,0,0.55)] select-none pointer-events-none"
+                className="w-full h-full max-h-60 object-contain drop-shadow-[0_25px_20px_rgba(0,0,0,0.5)] select-none pointer-events-none"
                 draggable={false}
                 referrerPolicy="no-referrer"
               />
               
-              {/* Interactive Target Outlines */}
-              <div className="absolute -top-2 -left-2 w-5 h-5 border-t-2 border-l-2 border-teal-400 rounded-tl opacity-75 group-hover:scale-105 transition-transform" />
-              <div className="absolute -top-2 -right-2 w-5 h-5 border-t-2 border-r-2 border-teal-400 rounded-tr opacity-75 group-hover:scale-105 transition-transform" />
-              <div className="absolute -bottom-2 -left-2 w-5 h-5 border-b-2 border-l-2 border-teal-400 rounded-bl opacity-75 group-hover:scale-105 transition-transform" />
-              <div className="absolute -bottom-2 -right-2 w-5 h-5 border-b-2 border-r-2 border-teal-400 rounded-br opacity-75 group-hover:scale-105 transition-transform" />
+              {/* Interactive Target Outlines removed to satisfy clean product-only visualization */}
             </div>
           </div>
         )}
@@ -739,7 +781,7 @@ const ARView = ({ product, onBack }: { product: Product | null; onBack: () => vo
               className="bg-white/95 backdrop-blur-xl rounded-[24px] p-3 mb-4 flex items-center gap-3.5 shadow-2xl border border-white/80"
             >
               <div className="w-12 h-12 rounded-xl overflow-hidden bg-slate-100 flex-shrink-0">
-                <img src={product.image} alt={product.name} className="w-full h-full object-cover" />
+                <img src={processedImage || product.image} alt={product.name} className="w-full h-full object-cover" />
               </div>
               <div className="flex-1">
                 <h4 className="text-xs font-bold text-slate-800 leading-tight">{product.name}</h4>
@@ -762,26 +804,13 @@ const ARView = ({ product, onBack }: { product: Product | null; onBack: () => vo
                   <span className="text-white text-[10px] font-bold w-12 opacity-85">Putar</span>
                   <input 
                     type="range" 
-                    min="0" 
-                    max="360" 
+                    min="-180" 
+                    max="180" 
                     value={rotation} 
                     onChange={(e) => setRotation(Number(e.target.value))}
                     className="flex-1 accent-teal-400 h-1 bg-white/20 rounded-lg appearance-none cursor-pointer"
                   />
                   <span className="text-teal-300 text-[10px] font-mono w-8 text-right">{rotation}°</span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <span className="text-white text-[10px] font-bold w-12 opacity-85">Ukuran</span>
-                  <input 
-                    type="range" 
-                    min="0.5" 
-                    max="1.8" 
-                    step="0.05"
-                    value={scale} 
-                    onChange={(e) => setScale(Number(e.target.value))}
-                    className="flex-1 accent-teal-400 h-1 bg-white/20 rounded-lg appearance-none cursor-pointer"
-                  />
-                  <span className="text-teal-300 text-[10px] font-mono w-8 text-right">{Math.round(scale * 100)}%</span>
                 </div>
               </div>
             )}
@@ -936,7 +965,7 @@ const Header = ({
           <div className="relative md:hidden flex items-center" ref={dropdownRef}>
             <button 
               onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-              className={`w-10 h-10 rounded-full ${googleUser ? 'bg-gradient-to-tr from-teal-500 to-amber-500 p-0.5 shadow-md hover:brightness-105' : 'bg-slate-100 hover:bg-slate-205 border border-slate-200/80 flex items-center justify-center text-slate-450'} active:scale-95 transition-all cursor-pointer relative`}
+              className={`w-10 h-10 rounded-full ${googleUser ? 'bg-gradient-to-tr from-teal-500 to-amber-500 p-0.5 shadow-md hover:brightness-105' : 'bg-slate-100 hover:bg-slate-200 border border-slate-200/80 flex items-center justify-center text-slate-500'} active:scale-95 transition-all cursor-pointer relative`}
             >
               {googleUser ? (
                 <img 
@@ -962,12 +991,12 @@ const Header = ({
                   initial={{ opacity: 0, y: 10, scale: 0.95 }}
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                  className="absolute right-0 top-12 w-64 bg-white border border-slate-150 shadow-2xl rounded-2xl p-3 z-50 flex flex-col gap-1.5"
+                  className="absolute right-0 top-12 w-64 bg-white border border-slate-200 shadow-2xl rounded-2xl p-3 z-50 flex flex-col gap-1.5"
                 >
                   {googleUser ? (
                     <div className="px-2.5 py-2 border-b border-slate-50 mb-1">
                       <p className="text-xs font-bold text-slate-800 truncate">{googleUser.name}</p>
-                      <p className="text-[9.5px] text-slate-450 truncate">{googleUser.email}</p>
+                      <p className="text-[9.5px] text-slate-500 truncate">{googleUser.email}</p>
                     </div>
                   ) : (
                     <div className="px-2.5 py-2 border-b border-slate-50 mb-1">
@@ -989,8 +1018,8 @@ const Header = ({
                       )}
                     </div>
                     <div>
-                      <h4 className="text-xs font-bold text-slate-850">Favorit Saya</h4>
-                      <p className="text-[9px] text-slate-450 leading-none">Pusaka tersimpan</p>
+                      <h4 className="text-xs font-bold text-slate-800">Favorit Saya</h4>
+                      <p className="text-[9px] text-slate-500 leading-none">Pusaka tersimpan</p>
                     </div>
                   </button>
 
@@ -1007,8 +1036,8 @@ const Header = ({
                       )}
                     </div>
                     <div>
-                      <h4 className="text-xs font-bold text-slate-850">Keranjang Belanja</h4>
-                      <p className="text-[9px] text-slate-450 leading-none">Total {cartCount} item</p>
+                      <h4 className="text-xs font-bold text-slate-800">Keranjang Belanja</h4>
+                      <p className="text-[9px] text-slate-500 leading-none">Total {cartCount} item</p>
                     </div>
                   </button>
 
@@ -1025,8 +1054,8 @@ const Header = ({
                       )}
                     </div>
                     <div>
-                      <h4 className="text-xs font-bold text-slate-850">Pusat Informasi</h4>
-                      <p className="text-[9px] text-slate-450 leading-none">Info AR & Promo</p>
+                      <h4 className="text-xs font-bold text-slate-800">Pusat Informasi</h4>
+                      <p className="text-[9px] text-slate-500 leading-none">Info AR & Promo</p>
                     </div>
                   </button>
 
@@ -1038,8 +1067,8 @@ const Header = ({
                       <User size={16} />
                     </div>
                     <div>
-                      <h4 className="text-xs font-bold text-slate-850">Edit Profil</h4>
-                      <p className="text-[9px] text-slate-450 leading-none">Nama Lengkap & Kontak</p>
+                      <h4 className="text-xs font-bold text-slate-800">Edit Profil</h4>
+                      <p className="text-[9px] text-slate-500 leading-none">Nama Lengkap & Kontak</p>
                     </div>
                   </button>
 
@@ -1074,7 +1103,7 @@ const Header = ({
           <div className="hidden md:flex relative" ref={dropdownRef}>
             <button 
               onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-              className={`w-10 h-10 rounded-full ${googleUser ? 'bg-gradient-to-tr from-teal-500 to-amber-500 p-0.5 shadow-md hover:brightness-105' : 'bg-slate-100 hover:bg-slate-205 border border-slate-200/80 flex items-center justify-center text-slate-455'} active:scale-95 transition-all cursor-pointer relative`}
+              className={`w-10 h-10 rounded-full ${googleUser ? 'bg-gradient-to-tr from-teal-500 to-amber-500 p-0.5 shadow-md hover:brightness-105' : 'bg-slate-100 hover:bg-slate-200 border border-slate-200/80 flex items-center justify-center text-slate-500'} active:scale-95 transition-all cursor-pointer relative`}
             >
               {googleUser ? (
                 <img 
@@ -1381,7 +1410,7 @@ function ProductCard({
               </button>
             ) : (
               <span 
-                className="px-2 py-1.5 rounded-xl bg-slate-50 border border-slate-150 text-slate-400 text-[8.5px] font-semibold flex items-center gap-0.5 select-none"
+                className="px-2 py-1.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-400 text-[8.5px] font-semibold flex items-center gap-0.5 select-none"
                 title="Produk ini milik sanggar adat lain"
               >
                 <span>🔒</span> Toko Lain
@@ -1431,16 +1460,41 @@ const getStoreName = (culture: string): string => {
 
 // --- MAIN APPLICATION ENTRY ---
 export default function App() {
+  const [showSplash, setShowSplash] = useState(true);
   const [view, setView] = useState<View>('home');
   const [previousView, setPreviousView] = useState<View>('home');
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [categoryFilter, setCategoryFilter] = useState('all');
 
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setShowSplash(false);
+    }, 2200);
+    return () => clearTimeout(timer);
+  }, []);
+
   // --- Dynamic local states ---
   const [products, setProducts] = useState<Product[]>(() => {
     try {
       const saved = localStorage.getItem('ballaar_products');
-      return saved ? JSON.parse(saved) : PRODUCTS;
+      if (saved) {
+        const parsed: Product[] = JSON.parse(saved);
+        // Force update default products' details (image, name, description, philosophy) to latest clean imagery
+        return parsed.map((p) => {
+          const defaultProd = PRODUCTS.find((dp) => dp.id === p.id);
+          if (defaultProd) {
+            return {
+              ...p,
+              image: defaultProd.image,
+              name: defaultProd.name,
+              description: defaultProd.description,
+              philosophy: defaultProd.philosophy
+            };
+          }
+          return p;
+        });
+      }
+      return PRODUCTS;
     } catch {
       return PRODUCTS;
     }
@@ -1721,8 +1775,45 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-white text-slate-800 font-sans antialiased relative">
+      <AnimatePresence>
+        {showSplash && (
+          <motion.div
+            key="splash"
+            initial={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.6, ease: 'easeOut' }}
+            className="fixed inset-0 z-[10000] bg-gradient-to-b from-[#F8FAFA] to-[#EEF4F4] flex flex-col items-center justify-between py-20 px-6"
+          >
+            <div className="h-10" />
+
+            <div className="flex flex-col items-center gap-5">
+              <div className="flex items-center gap-4 sm:gap-5">
+                <Logo className="w-14 h-14 sm:w-16 sm:h-16 shadow-md rounded-xl border border-teal-500/15" />
+                <div className="flex flex-col select-none">
+                  <h1 className="text-[40px] sm:text-[48px] font-bold font-serif text-teal-900 leading-[0.9] tracking-tight">
+                    Balla
+                  </h1>
+                  <p className="text-[14px] sm:text-[16px] font-extrabold text-amber-600 tracking-[0.45em] uppercase text-left pl-0.5">
+                    AR
+                  </p>
+                </div>
+              </div>
+              <p className="text-[9.5px] sm:text-[10px] font-bold text-teal-700/60 tracking-[0.4em] uppercase text-center mt-2 max-w-xs leading-relaxed">
+                South Sulawesi Heritage Interiors
+              </p>
+            </div>
+
+            <div className="flex flex-col items-center gap-4">
+              <div className="w-8 h-8 rounded-full border-2 border-teal-900/10 border-t-teal-600 animate-spin" />
+              <span className="text-[10px] sm:text-[11px] font-bold text-teal-800/60 tracking-[0.35em] uppercase">
+                Memuat Karya
+              </span>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <AnimatePresence mode="wait">
-        
         {view === 'home' && (
           <motion.div 
             key="home"
@@ -1769,7 +1860,7 @@ export default function App() {
                       <div className="p-1 px-2.5 bg-amber-500/15 border border-amber-500/25 text-amber-300 font-extrabold rounded-full text-[9px] uppercase tracking-wider font-sans">
                         🛠️ Dasbor Pengrajin Aktif
                       </div>
-                      <span className="text-[10px] text-teal-355/60 font-semibold font-mono">ID: {adminCulture.toUpperCase()}-ADMIN</span>
+                      <span className="text-[10px] text-teal-300/60 font-semibold font-mono">ID: {adminCulture.toUpperCase()}-ADMIN</span>
                     </div>
                     <h2 className="text-xl font-serif font-bold tracking-tight">
                       Selamat Datang di Panel {getStoreName(adminCulture)}
@@ -1781,13 +1872,13 @@ export default function App() {
                     {/* Quick Stats Row */}
                     <div className="flex gap-6 mt-4 pt-4 border-t border-slate-800">
                       <div>
-                        <p className="text-[9.5px] text-slate-450 uppercase tracking-widest leading-none font-bold">Koleksi Terdaftar</p>
+                        <p className="text-[9.5px] text-slate-400 uppercase tracking-widest leading-none font-bold">Koleksi Terdaftar</p>
                         <p className="text-base font-extrabold font-mono text-amber-300 mt-1">
                           {products.filter(p => p.culture.toLowerCase() === adminCulture.toLowerCase()).length} <span className="text-xs font-sans text-slate-400 font-normal">Karya Adat</span>
                         </p>
                       </div>
                       <div>
-                        <p className="text-[9.5px] text-slate-450 uppercase tracking-widest leading-none font-bold">Status Layanan</p>
+                        <p className="text-[9.5px] text-slate-400 uppercase tracking-widest leading-none font-bold">Status Layanan</p>
                         <div className="flex items-center gap-1.5 mt-1">
                           <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
                           <span className="text-xs font-bold text-emerald-400">Sanggar Terbuka (Live)</span>
@@ -1855,9 +1946,9 @@ export default function App() {
                     {curatorTab === 'pending' ? (
                       <div>
                         {products.filter(p => p.status === 'pending').length === 0 ? (
-                          <div className="py-10 text-center bg-slate-850/30 rounded-2xl border border-slate-800/60 p-4">
+                          <div className="py-10 text-center bg-slate-800/30 rounded-2xl border border-slate-800/60 p-4">
                             <span className="text-2xl">🎉</span>
-                            <h4 className="text-xs font-bold text-slate-350 mt-2 font-serif">Semua Kiriman Karya Bersih & Terkurasi</h4>
+                            <h4 className="text-xs font-bold text-slate-400 mt-2 font-serif">Semua Kiriman Karya Bersih & Terkurasi</h4>
                             <p className="text-[11px] text-slate-500 mt-1 max-w-md mx-auto leading-relaxed">
                               Tidak ada antrean pengajuan produk saat ini dari para pengrajin suku Toraja, Makassar, Bugis, maupun Mandar.
                             </p>
@@ -1870,7 +1961,7 @@ export default function App() {
                                 initial={{ opacity: 0, x: -5 }}
                                 animate={{ opacity: 1, x: 0 }}
                                 transition={{ delay: idx * 0.05 }}
-                                className="bg-slate-850/80 p-4 rounded-2xl border border-slate-800 flex flex-col lg:flex-row gap-5 items-start lg:items-center justify-between"
+                                className="bg-slate-800/80 p-4 rounded-2xl border border-slate-800 flex flex-col lg:flex-row gap-5 items-start lg:items-center justify-between"
                               >
                                 <div className="flex gap-4 items-start flex-1 min-w-0">
                                   <img
@@ -1884,7 +1975,7 @@ export default function App() {
                                       <span className="text-[10px] font-bold text-amber-400 bg-amber-400/10 px-2 py-0.5 rounded-md border border-amber-400/25 uppercase tracking-wider font-mono">
                                         Suku {p.culture}
                                       </span>
-                                      <span className="text-[11px] font-mono text-teal-450 font-extrabold">{p.price}</span>
+                                      <span className="text-[11px] font-mono text-teal-400 font-extrabold">{p.price}</span>
                                     </div>
                                     <h4 className="text-sm font-bold text-slate-100 font-serif leading-tight">{p.name}</h4>
                                     <p className="text-[11.5px] text-slate-300 leading-normal line-clamp-2">{p.description}</p>
@@ -1905,7 +1996,7 @@ export default function App() {
                                   </button>
                                   <button
                                     onClick={() => handleCurateProduct(p.id, 'approve')}
-                                    className="flex-1 sm:flex-none uppercase tracking-widest text-[10px] font-extrabold text-slate-950 bg-teal-400 hover:bg-teal-350 px-5 py-2.5 rounded-xl transition-all shadow-md shadow-teal-900/20 cursor-pointer active:scale-95 text-center flex items-center justify-center gap-1"
+                                    className="flex-1 sm:flex-none uppercase tracking-widest text-[10px] font-extrabold text-slate-950 bg-teal-400 hover:bg-teal-300 px-5 py-2.5 rounded-xl transition-all shadow-md shadow-teal-900/20 cursor-pointer active:scale-95 text-center flex items-center justify-center gap-1"
                                   >
                                     ✔ Setujui Produk
                                   </button>
@@ -2167,7 +2258,7 @@ export default function App() {
                         key={notif.id}
                         className={`p-4 rounded-2xl border transition-all relative overflow-hidden bg-white ${
                           notif.unread 
-                            ? 'border-slate-100 shadow-sm hover:border-slate-150' 
+                            ? 'border-slate-100 shadow-sm hover:border-slate-200' 
                             : 'border-transparent opacity-60'
                         }`}
                       >
@@ -2193,7 +2284,7 @@ export default function App() {
                         <h4 className={`text-xs font-bold mt-1 ${notif.unread ? 'text-slate-800' : 'text-slate-500'}`}>
                           {notif.title}
                         </h4>
-                        <p className={`text-[11px] leading-relaxed mt-1 ${notif.unread ? 'text-slate-500' : 'text-slate-450'}`}>
+                        <p className={`text-[11px] leading-relaxed mt-1 ${notif.unread ? 'text-slate-500' : 'text-slate-500'}`}>
                           {notif.desc}
                         </p>
 

@@ -425,7 +425,7 @@ export default function ProfileDrawer({
               ? 'bg-gradient-to-r from-slate-900 to-slate-950 border-b border-slate-800' 
               : userRole === 'admin' 
                 ? 'bg-gradient-to-r from-amber-950 to-slate-900 border-b border-amber-500/20' 
-                : 'bg-teal-955'
+                : 'bg-gradient-to-r from-teal-950 to-slate-900 border-b border-teal-500/20'
           }`}>
             <button
               onClick={onClose}
@@ -469,7 +469,7 @@ export default function ProfileDrawer({
                       userRole === 'admin' 
                         ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' 
                         : userRole === 'curator'
-                        ? 'bg-indigo-500/20 text-indigo-350 border border-indigo-500/30'
+                        ? 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/30'
                         : 'bg-teal-500/20 text-teal-300 border border-teal-500/30'
                     }`}>
                       {userRole === 'admin' 
@@ -491,7 +491,7 @@ export default function ProfileDrawer({
             {/* IF NOT LOGGED IN WITH GOOGLE: SHOW ACCORDION GOOGLE LOGIN FLOW FIRST */}
             {!googleUser ? (
               <div className="space-y-4">
-                <div className="bg-white rounded-3xl p-6 border border-slate-150 shadow-md text-center space-y-5">
+                <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-md text-center space-y-5">
                   <div className="w-12 h-12 rounded-full bg-teal-50 flex items-center justify-center mx-auto text-teal-600">
                     <Lock size={22} />
                   </div>
@@ -570,7 +570,7 @@ export default function ProfileDrawer({
                       <span className="text-xl">🛡️</span>
                     </div>
 
-                    <p className="text-[10px] text-slate-350 leading-relaxed font-sans">
+                    <p className="text-[10px] text-slate-400 leading-relaxed font-sans">
                       Sebagai perwakilan resmi Komite Penasihat Balla AR tingkat pusat, Anda memegang hak prerogatif penuh untuk menyetujui atau menolak pendaftaran pengrajin Sanggar Suku baru sebelum mereka diizinkan berdagang.
                     </p>
 
@@ -614,7 +614,7 @@ export default function ProfileDrawer({
                                 <button
                                   type="button"
                                   onClick={() => handleApproveApplication(app.id)}
-                                  className="flex-1 bg-gradient-to-r from-teal-500 to-emerald-500 hover:from-teal-600 hover:to-emerald-550 text-slate-950 active:scale-95 py-1.5 rounded-lg text-[10px] font-extrabold transition-all cursor-pointer text-center"
+                                  className="flex-1 bg-gradient-to-r from-teal-500 to-emerald-500 hover:from-teal-600 hover:to-emerald-600 text-slate-950 active:scale-95 py-1.5 rounded-lg text-[10px] font-extrabold transition-all cursor-pointer text-center"
                                 >
                                   ✔ ACC Mitra
                                 </button>
@@ -633,7 +633,7 @@ export default function ProfileDrawer({
                 )}
 
                 {/* ROLE MANAGEMENT & ACCESS ASSIGNMENT SECTION */}
-                <div className="bg-white rounded-3xl p-5 border border-slate-150 shadow-sm space-y-4 relative overflow-hidden">
+                <div className="bg-white rounded-3xl p-5 border border-slate-200 shadow-sm space-y-4 relative overflow-hidden">
                   <div className="absolute top-0 right-0 w-24 h-24 bg-teal-500/5 rounded-full translate-x-4 -translate-y-4 pointer-events-none" />
                   
                   <div className="flex items-center justify-between">
@@ -648,21 +648,21 @@ export default function ProfileDrawer({
                     <button
                       type="button"
                       onClick={() => setSelectedLoginRole('user')}
-                      className={`py-2 rounded-lg font-bold text-[9px] sm:text-[9.5px] transition-all cursor-pointer ${selectedLoginRole === 'user' ? 'bg-white text-teal-950 shadow-xs' : 'text-slate-500 hover:text-slate-805'}`}
+                      className={`py-2 rounded-lg font-bold text-[9px] sm:text-[9.5px] transition-all cursor-pointer ${selectedLoginRole === 'user' ? 'bg-white text-teal-950 shadow-xs' : 'text-slate-500 hover:text-slate-800'}`}
                     >
                       👤 Pembeli
                     </button>
                     <button
                       type="button"
                       onClick={() => setSelectedLoginRole('admin')}
-                      className={`py-2 rounded-lg font-bold text-[9px] sm:text-[9.5px] transition-all cursor-pointer ${selectedLoginRole === 'admin' ? 'bg-white text-teal-950 shadow-xs' : 'text-slate-500 hover:text-slate-850'}`}
+                      className={`py-2 rounded-lg font-bold text-[9px] sm:text-[9.5px] transition-all cursor-pointer ${selectedLoginRole === 'admin' ? 'bg-white text-teal-950 shadow-xs' : 'text-slate-500 hover:text-slate-800'}`}
                     >
                       🛠️ Penjual
                     </button>
                     <button
                       type="button"
                       onClick={() => setSelectedLoginRole('curator')}
-                      className={`py-2 rounded-lg font-bold text-[9px] sm:text-[9.5px] transition-all cursor-pointer ${selectedLoginRole === 'curator' ? 'bg-white text-teal-950 shadow-xs' : 'text-slate-500 hover:text-slate-850'}`}
+                      className={`py-2 rounded-lg font-bold text-[9px] sm:text-[9.5px] transition-all cursor-pointer ${selectedLoginRole === 'curator' ? 'bg-white text-teal-950 shadow-xs' : 'text-slate-500 hover:text-slate-800'}`}
                     >
                       🛡️ Kurator
                     </button>
@@ -689,7 +689,7 @@ export default function ProfileDrawer({
                           <div className="bg-slate-50 border border-slate-200 p-3.5 rounded-2xl text-xs space-y-2.5">
                             <div className="flex items-center justify-between">
                               <span className="font-extrabold text-slate-800">Status Akses: Aktif</span>
-                              <span className="text-[9px] font-bold px-2 py-0.5 rounded-md bg-teal-100 text-teal-800 border border-teal-150">
+                              <span className="text-[9px] font-bold px-2 py-0.5 rounded-md bg-teal-100 text-teal-800 border border-teal-200">
                                 Kolektor / User
                               </span>
                             </div>
@@ -697,7 +697,7 @@ export default function ProfileDrawer({
                             <div className="bg-white p-2.5 rounded-xl border border-slate-100/80 flex items-center justify-between">
                               <div>
                                 <h4 className="font-bold text-teal-950 leading-tight">Pelestari & Pembeli</h4>
-                                <p className="text-[9.5px] text-slate-450 mt-0.5">Melihat galeri & Simulasi Checkout Pusaka</p>
+                                <p className="text-[9.5px] text-slate-500 mt-0.5">Melihat galeri & Simulasi Checkout Pusaka</p>
                               </div>
                               <span className="text-lg">🛍️</span>
                             </div>
@@ -748,7 +748,7 @@ export default function ProfileDrawer({
                                 <div className="bg-white p-2.5 rounded-xl border border-slate-100/80 flex items-center justify-between">
                                   <div>
                                     <h4 className="font-bold text-amber-900 leading-tight">{getStoreName(adminCulture)}</h4>
-                                    <p className="text-[9.5px] text-slate-450 mt-0.5">Pemilik Hak Sanggar Suku {adminCulture}</p>
+                                    <p className="text-[9.5px] text-slate-500 mt-0.5">Pemilik Hak Sanggar Suku {adminCulture}</p>
                                   </div>
                                   <span className="text-lg">🏛️</span>
                                 </div>
@@ -779,7 +779,7 @@ export default function ProfileDrawer({
                           /* PROSES PENDAFTARAN MENUNGGU KONFIRMASI */
                           <div className="space-y-4">
                             <div className="bg-amber-50/70 border border-amber-200/60 p-4 rounded-2xl text-xs space-y-3">
-                              <div className="flex items-center gap-2 text-amber-850 font-bold">
+                              <div className="flex items-center gap-2 text-amber-800 font-bold">
                                 <div className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse shrink-0" />
                                 <span>Menunggu Konfirmasi Perusahaan</span>
                               </div>
@@ -788,8 +788,8 @@ export default function ProfileDrawer({
                               </p>
 
                               <div className="bg-white p-2.5 rounded-xl border border-amber-100 space-y-1 text-[10px]">
-                                <div className="flex justify-between"><span className="text-slate-450">Toko Adat:</span> <span className="font-semibold text-slate-700">{merchantStoreName}</span></div>
-                                <div className="flex justify-between truncate"><span className="text-slate-450">Alamat:</span> <span className="font-semibold text-slate-700">{merchantAddress}</span></div>
+                                <div className="flex justify-between"><span className="text-slate-500">Toko Adat:</span> <span className="font-semibold text-slate-700">{merchantStoreName}</span></div>
+                                <div className="flex justify-between truncate"><span className="text-slate-500">Alamat:</span> <span className="font-semibold text-slate-700">{merchantAddress}</span></div>
                               </div>
                             </div>
 
@@ -805,7 +805,7 @@ export default function ProfileDrawer({
                               <button
                                 type="button"
                                 onClick={handleSimulateCompanyApproval}
-                                className="w-full bg-gradient-to-r from-amber-550 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-slate-950 font-extrabold py-2 rounded-xl text-[11px] shadow-md transition-all active:scale-97 cursor-pointer"
+                                className="w-full bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-slate-950 font-extrabold py-2 rounded-xl text-[11px] shadow-md transition-all active:scale-97 cursor-pointer"
                               >
                                 ✓ Konfirmasi Akun Google Menjadi Penjual
                               </button>
@@ -837,7 +837,7 @@ export default function ProfileDrawer({
                                   type="text"
                                   disabled
                                   value={customPhone}
-                                  className="w-full bg-zinc-100 border border-zinc-200 rounded-xl px-2.5 py-1.5 text-zinc-450 cursor-not-allowed text-xs"
+                                  className="w-full bg-zinc-100 border border-zinc-200 rounded-xl px-2.5 py-1.5 text-zinc-500 cursor-not-allowed text-xs"
                                 />
                               </div>
 
@@ -896,7 +896,7 @@ export default function ProfileDrawer({
                             <div className="bg-white p-2.5 rounded-xl border border-slate-100/80 flex items-center justify-between">
                               <div>
                                 <h4 className="font-bold text-teal-950 leading-tight">Komite Evaluasi Adat</h4>
-                                <p className="text-[9.5px] text-slate-450 mt-0.5">Memasang & mendaftar status kurasi produk global</p>
+                                <p className="text-[9.5px] text-slate-600 mt-0.5">Memasang & mendaftar status kurasi produk global</p>
                               </div>
                               <span className="text-xl">🛡️</span>
                             </div>
@@ -949,7 +949,7 @@ export default function ProfileDrawer({
                           type="text"
                           value={customPhone}
                           onChange={(e) => handleSavePhone(e.target.value)}
-                          className="w-full bg-slate-50 border border-slate-150 rounded-xl px-3 py-2 text-xs focus:ring-1 focus:ring-teal-600/30 transition-all outline-none"
+                          className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs focus:ring-1 focus:ring-teal-600/30 transition-all outline-none"
                         />
                       </div>
                     </div>
@@ -958,7 +958,7 @@ export default function ProfileDrawer({
 
                 {/* ACTIVE CULTURAL VOUCHERS */}
                 {userRole === 'user' && (
-                  <div className="bg-white rounded-3xl p-5 border border-slate-105 shadow-xs space-y-3">
+                  <div className="bg-white rounded-3xl p-5 border border-slate-200 shadow-xs space-y-3">
                     <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5 mb-1">
                       <Gift size={13} /> Voucher Pelestari Kebudayaan
                     </h3>
@@ -967,7 +967,7 @@ export default function ProfileDrawer({
                       <div className="border border-dashed border-teal-500/30 bg-teal-50/40 p-3 rounded-xl flex justify-between items-center">
                         <div className="min-w-0 pr-2">
                           <h4 className="text-xs font-bold text-teal-900 truncate">Potongan Ongkir Adat</h4>
-                          <p className="text-[9.5px] text-slate-450 mt-0.5 line-clamp-1">Diskon cargo kayu jatian sebesar Rp350Rb</p>
+                          <p className="text-[9.5px] text-slate-500 mt-0.5 line-clamp-1">Diskon cargo kayu jatian sebesar Rp350Rb</p>
                         </div>
                         <button
                           onClick={() => handleCopyVoucher('KARYABUGIS10')}
@@ -984,7 +984,7 @@ export default function ProfileDrawer({
                       <div className="border border-dashed border-amber-500/30 bg-amber-50/40 p-3 rounded-xl flex justify-between items-center">
                         <div className="min-w-0 pr-2">
                           <h4 className="text-xs font-bold text-amber-900 truncate">Apresiasi Warisan 5%</h4>
-                          <p className="text-[9.5px] text-slate-450 mt-0.5 line-clamp-1">Potongan 5% tanpa minimum pembelian</p>
+                          <p className="text-[9.5px] text-slate-500 mt-0.5 line-clamp-1">Potongan 5% tanpa minimum pembelian</p>
                         </div>
                         <button
                           onClick={() => handleCopyVoucher('TORAJAWARISAN5')}
