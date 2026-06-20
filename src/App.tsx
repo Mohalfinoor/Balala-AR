@@ -235,6 +235,83 @@ const PRODUCTS: Product[] = [
   }
 ];
 
+// --- ARLinkOrButton ---
+const ARLinkOrButton = ({ 
+  product, 
+  className, 
+  children,
+  onClickDesktop 
+}: { 
+  product: Product; 
+  className: string; 
+  children: React.ReactNode;
+  onClickDesktop: (e: React.MouseEvent) => void;
+}) => {
+  const [platform, setPlatform] = useState<'desktop' | 'ios' | 'android'>('desktop');
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const ua = navigator.userAgent;
+      const isIOS = /iPad|iPhone|iPod/.test(ua) && !(window as any).MSStream;
+      const isAndroid = /Android/.test(ua);
+      if (isIOS) {
+        setPlatform('ios');
+      } else if (isAndroid) {
+        setPlatform('android');
+      } else {
+        setPlatform('desktop');
+      }
+    }
+  }, []);
+
+  if (platform === 'ios') {
+    const usdzUrl = product.usdzUrl || "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/SheenChair/glTF-USDZ/SheenChair.usdz";
+    return (
+      <a 
+        href={usdzUrl} 
+        rel="ar" 
+        className={className}
+        style={{ textDecoration: 'none' }}
+        onClick={(e) => {
+          e.stopPropagation();
+        }}
+      >
+        <img src={product.image} className="w-0 h-0 opacity-0 absolute pointer-events-none" alt="" />
+        {children}
+      </a>
+    );
+  }
+
+  if (platform === 'android') {
+    const glbUrl = product.glbUrl && product.glbUrl.startsWith('http') 
+      ? product.glbUrl 
+      : `${window.location.origin}${product.glbUrl || ''}`;
+    const sceneViewerUrl = `intent://arvr.google.com/scene-viewer/1.0?file=${encodeURIComponent(glbUrl)}&title=${encodeURIComponent(product.name)}&mode=ar_only#Intent;scheme=https;package=com.google.ar.core;action=android.intent.action.VIEW;S.browser_fallback_url=https://developers.google.com/ar;end`;
+
+    return (
+      <a 
+        href={sceneViewerUrl} 
+        className={className}
+        style={{ textDecoration: 'none' }}
+        onClick={(e) => {
+          e.stopPropagation();
+        }}
+      >
+        {children}
+      </a>
+    );
+  }
+
+  return (
+    <button 
+      onClick={onClickDesktop}
+      className={className}
+    >
+      {children}
+    </button>
+  );
+};
+
 // --- ProductDetailView ---
 const ProductDetailView = ({ 
   product, 
@@ -406,13 +483,14 @@ const ProductDetailView = ({
             <ExternalLink size={14} />
           </motion.button>
           
-          <button 
-            onClick={onAR}
-            className="w-full bg-slate-50 hover:bg-teal-600 hover:text-white text-teal-800 py-3 rounded-full font-bold text-xs flex items-center justify-center gap-2 cursor-pointer transition-all"
+          <ARLinkOrButton 
+            product={product}
+            onClickDesktop={onAR}
+            className="w-full bg-slate-50 hover:bg-teal-600 hover:text-white text-teal-850 dark:text-teal-850 py-3 rounded-full font-bold text-xs flex items-center justify-center gap-2 cursor-pointer transition-all border-none"
           >
             <Maximize2 size={14} />
             <span>Posisikan di Ruangan Anda (AR)</span>
-          </button>
+          </ARLinkOrButton>
         </div>
       </div>
     </div>
@@ -429,13 +507,14 @@ const ProductDetailView = ({
         <ExternalLink size={14} />
       </motion.button>
       
-      <button 
-        onClick={onAR}
-        className="w-full bg-teal-50 text-teal-800 py-3 rounded-full font-semibold text-xs flex items-center justify-center gap-2 cursor-pointer"
+      <ARLinkOrButton 
+        product={product}
+        onClickDesktop={onAR}
+        className="w-full bg-teal-50 text-teal-800 py-3 rounded-full font-semibold text-xs flex items-center justify-center gap-2 cursor-pointer border-none"
       >
         <Maximize2 size={14} />
         <span>Posisikan di Ruangan Anda (AR)</span>
-      </button>
+      </ARLinkOrButton>
     </div>
   </motion.div>
 );
@@ -1051,13 +1130,14 @@ function ProductCard({
             </button>
           </div>
           <div className="absolute bottom-2 left-2">
-            <button 
-              onClick={onARClick}
-              className="bg-teal-600/90 hover:bg-teal-600 backdrop-blur-xs text-white px-2 py-1 rounded-md flex items-center gap-1 shadow-sm active:scale-95 transition-transform cursor-pointer"
+            <ARLinkOrButton 
+              product={product}
+              onClickDesktop={(e) => { e.stopPropagation(); onARClick(e); }}
+              className="bg-teal-600/90 hover:bg-teal-600 backdrop-blur-xs text-white px-2 py-1 rounded-md flex items-center gap-1 shadow-sm active:scale-95 transition-transform cursor-pointer border-none"
             >
               <Maximize2 size={10} />
               <span className="text-[9px] font-bold tracking-wider">AR</span>
-            </button>
+            </ARLinkOrButton>
           </div>
         </div>
         
