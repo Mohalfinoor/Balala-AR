@@ -447,6 +447,21 @@ const ARView = ({ product, onBack }: { product: Product | null; onBack: () => vo
   const modelViewerRef = useRef<any>(null);
   const [modelLoaded, setModelLoaded] = useState(false);
 
+  useEffect(() => {
+    if (modelLoaded && modelViewerRef.current) {
+      const timer = setTimeout(() => {
+        try {
+          if (typeof modelViewerRef.current.activateAR === 'function') {
+            modelViewerRef.current.activateAR();
+          }
+        } catch (err) {
+          console.warn("Gagal mengaktifkan AR secara otomatis:", err);
+        }
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [modelLoaded]);
+
   if (!product) return null;
 
   const handleLaunchAR = () => {
@@ -1421,6 +1436,35 @@ export default function App() {
     setSelectedProduct(product);
     setPreviousView(view);
     setView('ar');
+
+    // Detect mobile platforms for instant native AR bypass
+    const isIOS = typeof window !== 'undefined' && /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
+    const isAndroid = typeof window !== 'undefined' && /Android/.test(navigator.userAgent);
+
+    if (isIOS) {
+      // iOS Safari launches native Apple AR Quick Look via an Anchor link
+      const usdzUrl = product.usdzUrl || "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/SheenChair/glTF-USDZ/SheenChair.usdz";
+      const anchor = document.createElement('a');
+      anchor.setAttribute('rel', 'ar');
+      anchor.setAttribute('href', usdzUrl);
+      
+      const img = document.createElement('img');
+      img.src = product.image;
+      anchor.appendChild(img);
+      
+      document.body.appendChild(anchor);
+      anchor.click();
+      document.body.removeChild(anchor);
+    } else if (isAndroid) {
+      // Android Google ARCore Scene Viewer intent protocol using original GLB file
+      const glbUrl = product.glbUrl && product.glbUrl.startsWith('http') 
+        ? product.glbUrl 
+        : `${window.location.origin}${product.glbUrl || ''}`;
+        
+      const sceneViewerUrl = `intent://arvr.google.com/scene-viewer/1.0?file=${encodeURIComponent(glbUrl)}&title=${encodeURIComponent(product.name)}&mode=ar_only#Intent;scheme=https;package=com.google.ar.core;action=android.intent.action.VIEW;S.browser_fallback_url=https://developers.google.com/ar;end`;
+      
+      window.location.href = sceneViewerUrl;
+    }
   };
 
   const handleBack = () => {
