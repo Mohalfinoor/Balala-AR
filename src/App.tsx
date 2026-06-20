@@ -541,6 +541,32 @@ const ARView = ({ product, onBack }: { product: Product | null; onBack: () => vo
 
   // Triggers device-specific, spatial tracking ARcore / ARkit Quick Look environments natively if available
   const handleLaunchNativeAR = () => {
+    // If the user is on iOS, we always trigger the native Quick Look anchor element directly for maximum reliability and spatial anchoring.
+    if (isIOS) {
+      const usdzUrl = product.usdzUrl || "https://developer.apple.com/augmented-reality/quick-look/models/woodchair/wood_chair.usdz";
+      const anchor = document.createElement('a');
+      anchor.setAttribute('rel', 'ar');
+      anchor.setAttribute('href', usdzUrl);
+      const img = document.createElement('img');
+      img.src = product.image;
+      anchor.appendChild(img);
+      document.body.appendChild(anchor);
+      anchor.click();
+      document.body.removeChild(anchor);
+      return;
+    }
+    
+    // If the user is on Android, we use the Direct Scene-Viewer Intent protocol which activates Google ARCore with environmental floor tracking.
+    if (isAndroid) {
+      const glbUrl = product.glbUrl && product.glbUrl.startsWith('http') 
+        ? product.glbUrl 
+        : `${window.location.origin}${product.glbUrl || ''}`;
+      const sceneViewerUrl = `intent://arvr.google.com/scene-viewer/1.0?file=${encodeURIComponent(glbUrl)}&title=${encodeURIComponent(product.name)}&mode=ar_only#Intent;scheme=https;package=com.google.ar.core;action=android.intent.action.VIEW;S.browser_fallback_url=https://developers.google.com/ar;end`;
+      window.location.href = sceneViewerUrl;
+      return;
+    }
+
+    // Default WebXR activation fallback on desktop/other browsers
     if (modelViewerRef.current) {
       try {
         if (typeof modelViewerRef.current.activateAR === 'function') {
@@ -548,26 +574,6 @@ const ARView = ({ product, onBack }: { product: Product | null; onBack: () => vo
         }
       } catch (err) {
         console.warn("Gagal memulai modul Spatial WebXR AR bawaan:", err);
-        
-        // Manual fallback if model-viewer container method fails
-        if (isIOS) {
-          const usdzUrl = product.usdzUrl || "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/SheenChair/glTF-USDZ/SheenChair.usdz";
-          const anchor = document.createElement('a');
-          anchor.setAttribute('rel', 'ar');
-          anchor.setAttribute('href', usdzUrl);
-          const img = document.createElement('img');
-          img.src = product.image;
-          anchor.appendChild(img);
-          document.body.appendChild(anchor);
-          anchor.click();
-          document.body.removeChild(anchor);
-        } else if (isAndroid) {
-          const glbUrl = product.glbUrl && product.glbUrl.startsWith('http') 
-            ? product.glbUrl 
-            : `${window.location.origin}${product.glbUrl || ''}`;
-          const sceneViewerUrl = `intent://arvr.google.com/scene-viewer/1.0?file=${encodeURIComponent(glbUrl)}&title=${encodeURIComponent(product.name)}&mode=ar_only#Intent;scheme=https;package=com.google.ar.core;action=android.intent.action.VIEW;S.browser_fallback_url=https://developers.google.com/ar;end`;
-          window.location.href = sceneViewerUrl;
-        }
       }
     }
   };
@@ -631,6 +637,8 @@ const ARView = ({ product, onBack }: { product: Product | null; onBack: () => vo
           src={product.glbUrl}
           ios-src={product.usdzUrl}
           alt={product.name}
+          ar
+          ar-modes="webxr scene-viewer quick-look"
           camera-controls
           auto-rotate={false}
           interaction-prompt="none"
@@ -642,6 +650,13 @@ const ARView = ({ product, onBack }: { product: Product | null; onBack: () => vo
           className="w-full h-full outline-hidden"
           onLoad={() => setModelLoaded(true)}
         >
+          {/* Custom style for the default slot-based AR button of model-viewer to hide it in favor of our custom native launcher button */}
+          <button 
+            slot="ar-button" 
+            id="ar-button-slot"
+            style={{ display: 'none' }}
+          />
+
           {modelLoaded && (
             <div className="absolute top-20 inset-x-0 mx-auto w-fit text-center pointer-events-none animate-bounce delay-1000 z-50">
               <span className="text-[10px] font-bold text-white bg-black/75 px-4 py-2 rounded-full border border-white/10 shadow-lg">
