@@ -159,7 +159,7 @@ const PRODUCTS: Product[] = [
     description: "Kursi tamu premium yang dibuat dari kayu jati pilihan, didesain dengan ukiran khas Toraja yang dipahat manual oleh pengrajin lokal berpengalaman.",
     philosophy: "Motif Pa'reppo pada kursi ini melambangkan keteguhan hati, kemantapan berfikir, dan kemapanan dalam jenjang kehidupan masyarakat adat Toraja.",
     glbUrl: pareppoGlb,
-    usdzUrl: "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/SheenChair/USDZ/SheenChair.usdz"
+    usdzUrl: "https://developer.apple.com/ar/3d-models/tulip-chair/tulip_chair.usdz"
   },
   {
     id: '2',
@@ -171,7 +171,7 @@ const PRODUCTS: Product[] = [
     description: "Lemari pakaian mahakarya seni ukir Bugis dengan garis sulur organik yang elegan, sangat luas dan memperindah interior kamar tidur mewah Anda.",
     philosophy: "Motif 'sulur' pada lemari ini merepresentasikan pertumbuhan berkelanjutan, kemakmuran, dan keterhubungan segala lini kehidupan dalam falsafah adat suku Bugis.",
     glbUrl: "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/CarbonCabinet/glTF-Binary/CarbonCabinet.glb",
-    usdzUrl: "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/CarbonCabinet/USDZ/CarbonCabinet.usdz"
+    usdzUrl: "https://developer.apple.com/ar/3d-models/retro-tv/retro_tv.usdz"
   },
   {
     id: '3',
@@ -183,7 +183,7 @@ const PRODUCTS: Product[] = [
     description: "Meja makan kayu jati solid yang dihiasi ukiran geometris Toraja penuh detail presisi, cocok untuk perjamuan keluarga yang hangat.",
     philosophy: "Passura' melambangkan kearifan lokal Toraja yang dituangkan dalam ukiran geometris presisi, mengajarkan ketelitian serta keteraturan hukum semesta.",
     glbUrl: "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/Stool/glTF-Binary/Stool.glb",
-    usdzUrl: "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/Stool/USDZ/Stool.usdz"
+    usdzUrl: "https://developer.apple.com/ar/3d-models/cupandsaucer/cup_saucer_set.usdz"
   },
   {
     id: '4',
@@ -195,7 +195,7 @@ const PRODUCTS: Product[] = [
     description: "Lemari pajangan luxury dengan ukiran relief epik penjelajahan kapal legendaris Phinisi Bugis-Makassar yang mengarungi samudera luas.",
     philosophy: "Ukiran kapal Phinisi yang legendaris melambangkan keteguhan berjuang, tekad pantang menyerah, keberanian, dan jiwa pelaut sejati masyarakat Makassar.",
     glbUrl: "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/Lantern/glTF-Binary/Lantern.glb",
-    usdzUrl: "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/Lantern/USDZ/Lantern.usdz"
+    usdzUrl: "https://developer.apple.com/ar/3d-models/wateringcan/wateringcan.usdz"
   },
   {
     id: '5',
@@ -207,7 +207,7 @@ const PRODUCTS: Product[] = [
     description: "Sofa santai dengan bantalan empuk berlapis tenun motif sutra Saqbe Mandar asli, memadukan modernitas furnitur dengan sentuhan kerajinan wastra nusantara.",
     philosophy: "Terinspirasi dari tenun Saqbe Mandar, melambangkan kerapian tatanan kebersamaan, kehangatan rasa, dan kelembutan tradisi leluhur dalam harmoni kontemporer.",
     glbUrl: "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/GlamVelvetSofa/glTF-Binary/GlamVelvetSofa.glb",
-    usdzUrl: "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/GlamVelvetSofa/USDZ/GlamVelvetSofa.usdz"
+    usdzUrl: "https://developer.apple.com/ar/3d-models/toycar/toy_car.usdz"
   },
   {
     id: '6',
@@ -219,7 +219,7 @@ const PRODUCTS: Product[] = [
     description: "Meja buffet serbaguna yang anggun, mengkolaborasikan aksen kaligrafi bermakna spiritual dengan ornamen geometris lokal tanah Bugis.",
     philosophy: "Perpaduan seni kaligrafi dengan motif sakral tradisional Bugis yang melambangkan berkah spiritualitas, ketenangan batin, serta perlindungan Ilahi.",
     glbUrl: "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/ModernUpholsteredChair/glTF-Binary/ModernUpholsteredChair.glb",
-    usdzUrl: "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/ModernUpholsteredChair/USDZ/ModernUpholsteredChair.usdz"
+    usdzUrl: "https://developer.apple.com/ar/3d-models/teapot/teapot.usdz"
   },
   {
     id: '7',
@@ -231,7 +231,7 @@ const PRODUCTS: Product[] = [
     description: "Model representasi Kursi Singgasana kerajaan Bone berlapis ornamen jati megah. Dibuat khusus sebagai model sampel uji coba fungsionalitas visualisasi AR 3D interaktif yang presisi secara spasial.",
     philosophy: "Mewakili nilai keagungan, kejayaan, keadilan, dan keteguhan kepemimpinan spiritual spiritualitas Bugis-Makassar.",
     glbUrl: "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/ModernUpholsteredChair/glTF-Binary/ModernUpholsteredChair.glb",
-    usdzUrl: "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/ModernUpholsteredChair/USDZ/ModernUpholsteredChair.usdz"
+    usdzUrl: "https://developer.apple.com/ar/3d-models/chair/chair.usdz"
   }
 ];
 
@@ -1414,11 +1414,45 @@ export default function App() {
     setView('details');
   };
 
-  const handleARClick = (e: React.MouseEvent, product: Product) => {
-    e.stopPropagation();
+  const handleARClick = (e: React.MouseEvent | null, product: Product) => {
+    if (e) {
+      e.stopPropagation();
+    }
     setSelectedProduct(product);
-    setPreviousView(view);
-    setView('ar');
+    
+    const isIOS = typeof window !== 'undefined' && /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
+    const isAndroid = typeof window !== 'undefined' && /Android/.test(navigator.userAgent);
+    
+    if (isIOS || isAndroid) {
+      if (isIOS) {
+        // iOS Safari launches native Apple AR Quick Look via an Anchor link
+        const usdzUrl = product.usdzUrl || "https://developer.apple.com/ar/3d-models/tulip-chair/tulip_chair.usdz";
+        const anchor = document.createElement('a');
+        anchor.setAttribute('rel', 'ar');
+        anchor.setAttribute('href', usdzUrl);
+        
+        const img = document.createElement('img');
+        img.src = product.image;
+        anchor.appendChild(img);
+        
+        document.body.appendChild(anchor);
+        anchor.click();
+        document.body.removeChild(anchor);
+      } else {
+        // Android Google ARCore Scene Viewer intent protocol using original GLB file
+        const glbUrl = product.glbUrl && product.glbUrl.startsWith('http') 
+          ? product.glbUrl 
+          : `${window.location.origin}${product.glbUrl || ''}`;
+          
+        const sceneViewerUrl = `intent://arvr.google.com/scene-viewer/1.0?file=${encodeURIComponent(glbUrl)}&title=${encodeURIComponent(product.name)}&mode=ar_only#Intent;scheme=https;package=com.google.ar.core;action=android.intent.action.VIEW;S.browser_fallback_url=https://developers.google.com/ar;end`;
+        
+        window.location.href = sceneViewerUrl;
+      }
+    } else {
+      // Desktop fallback: slide in the interactive inside-app 3D model-viewer
+      setPreviousView(view);
+      setView('ar');
+    }
   };
 
   const handleBack = () => {
@@ -1790,8 +1824,7 @@ export default function App() {
             product={selectedProduct} 
             onBack={() => setView('home')} 
             onAR={() => {
-              setPreviousView('details');
-              setView('ar');
+              handleARClick(null, selectedProduct);
             }}
             isFavorite={favorites.includes(selectedProduct.id)}
             onToggleFavorite={() => handleToggleFavorite(selectedProduct.id)}
