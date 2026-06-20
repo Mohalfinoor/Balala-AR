@@ -247,65 +247,14 @@ const ARLinkOrButton = ({
   children: React.ReactNode;
   onClickDesktop: (e: React.MouseEvent) => void;
 }) => {
-  const [platform, setPlatform] = useState<'desktop' | 'ios' | 'android'>('desktop');
-
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const ua = navigator.userAgent;
-      const isIOS = /iPad|iPhone|iPod/.test(ua) && !(window as any).MSStream;
-      const isAndroid = /Android/.test(ua);
-      if (isIOS) {
-        setPlatform('ios');
-      } else if (isAndroid) {
-        setPlatform('android');
-      } else {
-        setPlatform('desktop');
-      }
-    }
-  }, []);
-
-  if (platform === 'ios') {
-    const usdzUrl = product.usdzUrl || "https://developer.apple.com/augmented-reality/quick-look/models/woodchair/wood_chair.usdz";
-    return (
-      <a 
-        href={usdzUrl} 
-        rel="ar" 
-        className={className}
-        style={{ textDecoration: 'none' }}
-        onClick={(e) => {
-          e.stopPropagation();
-        }}
-      >
-        <img src={product.image} className="w-0 h-0 opacity-0 absolute pointer-events-none" alt="" />
-        {children}
-      </a>
-    );
-  }
-
-  if (platform === 'android') {
-    const glbUrl = product.glbUrl && product.glbUrl.startsWith('http') 
-      ? product.glbUrl 
-      : `${window.location.origin}${product.glbUrl || ''}`;
-    const sceneViewerUrl = `intent://arvr.google.com/scene-viewer/1.0?file=${encodeURIComponent(glbUrl)}&title=${encodeURIComponent(product.name)}&mode=ar_only#Intent;scheme=https;package=com.google.ar.core;action=android.intent.action.VIEW;S.browser_fallback_url=https://developers.google.com/ar;end`;
-
-    return (
-      <a 
-        href={sceneViewerUrl} 
-        className={className}
-        style={{ textDecoration: 'none' }}
-        onClick={(e) => {
-          e.stopPropagation();
-        }}
-      >
-        {children}
-      </a>
-    );
-  }
-
   return (
     <button 
-      onClick={onClickDesktop}
+      onClick={(e) => {
+        e.stopPropagation();
+        onClickDesktop(e);
+      }}
       className={className}
+      style={{ border: 'none' }}
     >
       {children}
     </button>
@@ -524,31 +473,101 @@ const ProductDetailView = ({
 const ARView = ({ product, onBack }: { product: Product | null; onBack: () => void; key?: string }) => {
   const ModelViewer = 'model-viewer' as any;
   const modelViewerRef = useRef<any>(null);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  
   const [modelLoaded, setModelLoaded] = useState(false);
+  const [cameraActive, setCameraActive] = useState(false);
+  const [cameraError, setCameraError] = useState<string | null>(null);
+  const [isIOS, setIsIOS] = useState(false);
+  const [isAndroid, setIsAndroid] = useState(false);
 
+  // Identify platform for helpful instructions and dedicated native launch configurations
   useEffect(() => {
-    if (modelLoaded && modelViewerRef.current) {
-      const timer = setTimeout(() => {
-        try {
-          if (typeof modelViewerRef.current.activateAR === 'function') {
-            modelViewerRef.current.activateAR();
-          }
-        } catch (err) {
-          console.warn("Gagal mengaktifkan AR secara otomatis:", err);
-        }
-      }, 500);
-      return () => clearTimeout(timer);
+    if (typeof window !== 'undefined') {
+      const ua = navigator.userAgent;
+      const ios = /iPad|iPhone|iPod/.test(ua) && !(window as any).MSStream;
+      const android = /Android/.test(ua);
+      setIsIOS(ios);
+      setIsAndroid(android);
     }
-  }, [modelLoaded]);
+  }, []);
+
+  // Request the camera stream and bind it to our background video element
+  useEffect(() => {
+    let activeStream: MediaStream | null = null;
+    
+    async function startCamera() {
+      try {
+        // Attempt to launch the rear environment camera first for the best AR experience
+        activeStream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: 'environment' }
+        });
+        if (videoRef.current) {
+          videoRef.current.srcObject = activeStream;
+          setCameraActive(true);
+        }
+      } catch (err) {
+        console.warn("Kamera belakang 'environment' tidak dapat langsung diakses. Mencoba kamera default:", err);
+        try {
+          // Fallback to any user/default camera
+          activeStream = await navigator.mediaDevices.getUserMedia({ video: true });
+          if (videoRef.current) {
+            videoRef.current.srcObject = activeStream;
+            setCameraActive(true);
+          }
+        } catch (failErr) {
+          console.error("Gagal memulai kamera perangkat:", failErr);
+          setCameraError("Akses kamera ditolak atau perangkat tidak mendukung streaming video langsung.");
+        }
+      }
+    }
+
+    startCamera();
+
+    return () => {
+      if (activeStream) {
+        activeStream.getTracks().forEach(track => {
+          try {
+            track.stop();
+          } catch (e) {
+            console.error("Gagal mematikan kamera:", e);
+          }
+        });
+      }
+    };
+  }, []);
 
   if (!product) return null;
 
-  const handleLaunchAR = () => {
+  // Triggers device-specific, spatial tracking ARcore / ARkit Quick Look environments natively if available
+  const handleLaunchNativeAR = () => {
     if (modelViewerRef.current) {
       try {
-        modelViewerRef.current.activateAR();
+        if (typeof modelViewerRef.current.activateAR === 'function') {
+          modelViewerRef.current.activateAR();
+        }
       } catch (err) {
-        console.warn("Gagal mengaktifkan AR secara langsung:", err);
+        console.warn("Gagal memulai modul Spatial WebXR AR bawaan:", err);
+        
+        // Manual fallback if model-viewer container method fails
+        if (isIOS) {
+          const usdzUrl = product.usdzUrl || "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/SheenChair/glTF-USDZ/SheenChair.usdz";
+          const anchor = document.createElement('a');
+          anchor.setAttribute('rel', 'ar');
+          anchor.setAttribute('href', usdzUrl);
+          const img = document.createElement('img');
+          img.src = product.image;
+          anchor.appendChild(img);
+          document.body.appendChild(anchor);
+          anchor.click();
+          document.body.removeChild(anchor);
+        } else if (isAndroid) {
+          const glbUrl = product.glbUrl && product.glbUrl.startsWith('http') 
+            ? product.glbUrl 
+            : `${window.location.origin}${product.glbUrl || ''}`;
+          const sceneViewerUrl = `intent://arvr.google.com/scene-viewer/1.0?file=${encodeURIComponent(glbUrl)}&title=${encodeURIComponent(product.name)}&mode=ar_only#Intent;scheme=https;package=com.google.ar.core;action=android.intent.action.VIEW;S.browser_fallback_url=https://developers.google.com/ar;end`;
+          window.location.href = sceneViewerUrl;
+        }
       }
     }
   };
@@ -560,52 +579,82 @@ const ARView = ({ product, onBack }: { product: Product | null; onBack: () => vo
       exit={{ opacity: 0 }}
       className="fixed inset-0 w-full h-screen z-[200] bg-slate-950 overflow-hidden flex flex-col"
     >
+      {/* Background Video Stream Layer (Active Camera) */}
+      <video
+        ref={videoRef}
+        autoPlay
+        playsInline
+        muted
+        className="absolute inset-0 w-full h-full object-cover z-0"
+        style={{ transform: cameraActive && !isIOS && !isAndroid ? 'scaleX(-1)' : 'none' }} // Mirror front-facing camera on desktop only
+      />
+
       {/* Top Header Overlay */}
-      <div className="absolute top-0 inset-x-0 z-50 bg-gradient-to-b from-black/80 via-black/40 to-transparent p-5 flex items-center justify-between">
+      <div className="absolute top-0 inset-x-0 z-50 bg-gradient-to-b from-black/85 via-black/40 to-transparent p-5 flex items-center justify-between">
         <button 
           onClick={onBack}
-          className="w-10 h-10 rounded-full bg-black/45 backdrop-blur-md flex items-center justify-center text-white border border-white/10 hover:bg-black/60 transition-colors cursor-pointer"
+          className="w-10 h-10 rounded-full bg-black/60 backdrop-blur-md flex items-center justify-center text-white border border-white/20 hover:bg-black/80 transition-colors cursor-pointer"
         >
           <ChevronLeft size={24} />
         </button>
-        <span className="text-white text-[11px] font-bold tracking-widest uppercase bg-teal-600/85 backdrop-blur-md px-4 py-2 rounded-full border border-teal-500/20 shadow-lg">
-          Kamera AR Realistis
+        <span className="text-white text-[11px] font-black tracking-widest uppercase bg-teal-600 px-4 py-2 rounded-full border border-teal-500 shadow-xl flex items-center gap-2">
+          <span className="w-2.5 h-2.5 bg-red-500 rounded-full animate-ping" />
+          Kamera AR Aktif
         </span>
         <div className="w-10 h-10" />
       </div>
 
-      {/* Main Interactive 3D Viewport with light natural lighting so textures are brown and original */}
-      <div className="flex-1 w-full h-full relative flex items-center justify-center bg-slate-900">
+      {/* Camera Inactive / Error Fallbacks */}
+      {!cameraActive && !cameraError && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-950/70 text-white z-10 p-6 text-center">
+          <div className="w-10 h-10 rounded-full border-4 border-teal-500 border-t-transparent animate-spin mb-4" />
+          <h3 className="font-bold text-sm text-teal-400">Menghubungkan ke Kamera...</h3>
+          <p className="text-xs text-slate-400 mt-1 max-w-xs">Mohon izinkan akses kamera agar dapat melihat model 3D langsung di ruangan Anda.</p>
+        </div>
+      )}
+
+      {cameraError && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-900/90 text-white z-10 p-6 text-center">
+          <div className="w-12 h-12 bg-red-500/20 rounded-full flex items-center justify-center text-red-400 mb-4 border border-red-500/30">
+            ⚠
+          </div>
+          <h3 className="font-bold text-base text-red-400">Gagal Mengaktifkan Kamera</h3>
+          <p className="text-xs text-slate-300 mt-2 max-w-xs leading-relaxed">{cameraError}</p>
+          <p className="text-[11px] text-slate-500 mt-1 bg-white/5 px-3 py-1.5 rounded-full">Tetap menampilkan visualisator 3D interaktif</p>
+        </div>
+      )}
+
+      {/* Main Interactive 3D Canvas rendering directly overlayed on top of active camera stream */}
+      <div className="flex-1 w-full h-full relative flex items-center justify-center z-10">
         <ModelViewer
           ref={modelViewerRef}
           src={product.glbUrl}
           ios-src={product.usdzUrl}
           alt={product.name}
-          ar
-          ar-modes="webxr scene-viewer quick-look"
           camera-controls
-          auto-rotate
-          interaction-prompt="auto"
-          shadow-intensity="1.5"
-          shadow-softness="0.5"
-          exposure="1.0"
+          auto-rotate={false}
+          interaction-prompt="none"
+          shadow-intensity="2.8"
+          shadow-softness="0.3"
+          exposure="1.2"
           environment-image="neutral"
-          style={{ width: '100%', height: '100%', backgroundColor: '#111827' }}
+          style={{ width: '100%', height: '100%', background: 'transparent' }}
           className="w-full h-full outline-hidden"
           onLoad={() => setModelLoaded(true)}
         >
-          {/* Custom style for the default slot-based AR button of model-viewer */}
-          <button 
-            slot="ar-button" 
-            id="ar-button-slot"
-            className="hidden"
-          />
+          {modelLoaded && (
+            <div className="absolute top-20 inset-x-0 mx-auto w-fit text-center pointer-events-none animate-bounce delay-1000 z-50">
+              <span className="text-[10px] font-bold text-white bg-black/75 px-4 py-2 rounded-full border border-white/10 shadow-lg">
+                👆 Seret untuk Memutar • 🤏 Cubit untuk Memperbesar
+              </span>
+            </div>
+          )}
 
           {!modelLoaded && (
-            <div slot="poster" className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-slate-950 text-white z-20">
+            <div slot="poster" className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-slate-950/40 text-white z-20">
               <div className="w-9 h-9 rounded-full border-3 border-teal-500 border-t-transparent animate-spin" />
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest animate-pulse">
-                Memuat Model 3D Asli (.GLB)...
+              <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest animate-pulse">
+                Menyiapkan Model Seni 3D {product.culture}...
               </span>
             </div>
           )}
@@ -613,33 +662,29 @@ const ARView = ({ product, onBack }: { product: Product | null; onBack: () => vo
       </div>
 
       {/* Embedded UI Detail Controls Overlay */}
-      <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-slate-950 via-slate-950/90 to-transparent p-6 pt-20 flex flex-col items-center z-45">
-        <div className="w-full max-w-sm bg-white/5 backdrop-blur-xl border border-white/10 p-5 rounded-3xl shadow-2xl flex flex-col gap-4 text-center">
+      <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-slate-950 via-slate-950/85 to-transparent p-6 pt-24 flex flex-col items-center z-20">
+        <div className="w-full max-w-sm bg-black/70 backdrop-blur-xl border border-white/15 p-5 rounded-3xl shadow-2xl flex flex-col gap-4 text-center">
           
           <div>
             <span className="text-[9px] font-bold text-teal-400 uppercase tracking-widest bg-teal-950/40 border border-teal-500/10 px-2.5 py-0.5 rounded-full">
-              {product.culture} Heritage
+              Koleksi {product.culture}
             </span>
             <h4 className="text-sm font-bold text-white mt-1.5">{product.name}</h4>
-            <p className="text-[11px] text-slate-400 mt-1 line-clamp-1 leading-relaxed">{product.description}</p>
+            <p className="text-[11px] text-slate-300 mt-1 line-clamp-1 leading-relaxed">{product.philosophy}</p>
           </div>
 
-          <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-2.5">
             <button
-              onClick={handleLaunchAR}
-              className="w-full bg-gradient-to-r from-amber-500 via-orange-500 to-teal-600 hover:brightness-110 active:scale-98 transition-all text-white py-3.5 rounded-2xl text-xs font-black tracking-wider uppercase flex items-center justify-center gap-2 shadow-lg shadow-teal-500/20 cursor-pointer border-none"
+              onClick={handleLaunchNativeAR}
+              className="w-full bg-gradient-to-r from-teal-500 via-teal-600 to-amber-600 hover:brightness-110 active:scale-98 transition-all text-white py-3.5 rounded-2xl text-[10.5px] font-black tracking-wider uppercase flex items-center justify-center gap-2 shadow-lg shadow-teal-500/20 cursor-pointer border-none"
             >
-              <Sparkles size={16} className="text-amber-200 animate-pulse" />
-              <span>Gunakan Kamera AR (ARCore / ARKit)</span>
+              <Sparkles size={14} className="text-amber-200 animate-pulse" />
+              <span>Gunakan AR Khusus HP Bawaan</span>
             </button>
             
-            <p className="text-[10px] text-slate-450 max-w-xs mx-auto">
-              Fitur ini memproyeksikan model 3D asli (.GLB) dengan warna kayu alami secara real-time di ruangan Anda menggunakan sistem AR bawaan HP Anda.
+            <p className="text-[10px] text-slate-400 max-w-xs mx-auto leading-relaxed">
+              Membuka kamera internal HP Anda demi perataan spasial (Spatial Tracking) otomatis di atas permukaan lantai.
             </p>
-          </div>
-
-          <div className="text-[9.5px] text-slate-500 italic">
-            💡 Untuk perangkat iOS, pastikan format USDZ sudah sesuai dengan model 3D pilihan Anda.
           </div>
 
         </div>
@@ -1516,35 +1561,6 @@ export default function App() {
     setSelectedProduct(product);
     setPreviousView(view);
     setView('ar');
-
-    // Detect mobile platforms for instant native AR bypass
-    const isIOS = typeof window !== 'undefined' && /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
-    const isAndroid = typeof window !== 'undefined' && /Android/.test(navigator.userAgent);
-
-    if (isIOS) {
-      // iOS Safari launches native Apple AR Quick Look via an Anchor link
-      const usdzUrl = product.usdzUrl || "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/SheenChair/glTF-USDZ/SheenChair.usdz";
-      const anchor = document.createElement('a');
-      anchor.setAttribute('rel', 'ar');
-      anchor.setAttribute('href', usdzUrl);
-      
-      const img = document.createElement('img');
-      img.src = product.image;
-      anchor.appendChild(img);
-      
-      document.body.appendChild(anchor);
-      anchor.click();
-      document.body.removeChild(anchor);
-    } else if (isAndroid) {
-      // Android Google ARCore Scene Viewer intent protocol using original GLB file
-      const glbUrl = product.glbUrl && product.glbUrl.startsWith('http') 
-        ? product.glbUrl 
-        : `${window.location.origin}${product.glbUrl || ''}`;
-        
-      const sceneViewerUrl = `intent://arvr.google.com/scene-viewer/1.0?file=${encodeURIComponent(glbUrl)}&title=${encodeURIComponent(product.name)}&mode=ar_only#Intent;scheme=https;package=com.google.ar.core;action=android.intent.action.VIEW;S.browser_fallback_url=https://developers.google.com/ar;end`;
-      
-      window.location.href = sceneViewerUrl;
-    }
   };
 
   const handleBack = () => {
