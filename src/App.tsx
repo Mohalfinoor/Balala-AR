@@ -159,7 +159,7 @@ const PRODUCTS: Product[] = [
     description: "Kursi tamu premium yang dibuat dari kayu jati pilihan, didesain dengan ukiran khas Toraja yang dipahat manual oleh pengrajin lokal berpengalaman.",
     philosophy: "Motif Pa'reppo pada kursi ini melambangkan keteguhan hati, kemantapan berfikir, dan kemapanan dalam jenjang kehidupan masyarakat adat Toraja.",
     glbUrl: pareppoGlb,
-    usdzUrl: "https://developer.apple.com/augmented-reality/quick-look/models/woodchair/wood_chair.usdz"
+    usdzUrl: "https://developer.apple.com/augmented-reality/quick-look/models/woodchair/woodchair.usdz"
   },
   {
     id: '2',
@@ -219,7 +219,7 @@ const PRODUCTS: Product[] = [
     description: "Meja buffet serbaguna yang anggun, mengkolaborasikan aksen kaligrafi bermakna spiritual dengan ornamen geometris lokal tanah Bugis.",
     philosophy: "Perpaduan seni kaligrafi dengan motif sakral tradisional Bugis yang melambangkan berkah spiritualitas, ketenangan batin, serta perlindungan Ilahi.",
     glbUrl: "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/ModernUpholsteredChair/glTF-Binary/ModernUpholsteredChair.glb",
-    usdzUrl: "https://developer.apple.com/augmented-reality/quick-look/models/woodchair/wood_chair.usdz"
+    usdzUrl: "https://developer.apple.com/augmented-reality/quick-look/models/woodchair/woodchair.usdz"
   },
   {
     id: '7',
@@ -231,7 +231,7 @@ const PRODUCTS: Product[] = [
     description: "Model representasi Kursi Singgasana kerajaan Bone berlapis ornamen jati megah. Dibuat khusus sebagai model sampel uji coba fungsionalitas visualisasi AR 3D interaktif yang presisi secara spasial.",
     philosophy: "Mewakili nilai keagungan, kejayaan, keadilan, dan keteguhan kepemimpinan spiritual spiritualitas Bugis-Makassar.",
     glbUrl: "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/ModernUpholsteredChair/glTF-Binary/ModernUpholsteredChair.glb",
-    usdzUrl: "https://developer.apple.com/augmented-reality/quick-look/models/woodchair/wood_chair.usdz"
+    usdzUrl: "https://developer.apple.com/augmented-reality/quick-look/models/woodchair/woodchair.usdz"
   }
 ];
 
@@ -543,7 +543,7 @@ const ARView = ({ product, onBack }: { product: Product | null; onBack: () => vo
   const handleLaunchNativeAR = () => {
     // If the user is on iOS, we always trigger the native Quick Look anchor element directly for maximum reliability and spatial anchoring.
     if (isIOS) {
-      const usdzUrl = product.usdzUrl || "https://developer.apple.com/augmented-reality/quick-look/models/woodchair/wood_chair.usdz";
+      const usdzUrl = product.usdzUrl || "https://developer.apple.com/augmented-reality/quick-look/models/woodchair/woodchair.usdz";
       const anchor = document.createElement('a');
       anchor.setAttribute('rel', 'ar');
       anchor.setAttribute('href', usdzUrl);
@@ -688,17 +688,24 @@ const ARView = ({ product, onBack }: { product: Product | null; onBack: () => vo
             <p className="text-[11px] text-slate-300 mt-1 line-clamp-1 leading-relaxed">{product.philosophy}</p>
           </div>
 
+          <div className="bg-amber-550/15 border border-amber-500/20 p-3 rounded-2xl text-[10px] text-amber-200 text-left leading-relaxed">
+            <span className="font-bold flex items-center gap-1.5 mb-1 text-amber-400">
+              💡 Tips Objek Statis &amp; Melayang:
+            </span>
+            Kamera web browser biasa bersifat <strong>statis (mengikuti layar)</strong>. Agar objek <strong>tetap terkunci kokoh pada posisinya di lantai saat Anda berjalan/pindah ruangan</strong>, gunakan sensor spasial bawaan HP Anda dengan menekan tombol hijau di bawah.
+          </div>
+
           <div className="flex flex-col gap-2.5">
             <button
               onClick={handleLaunchNativeAR}
               className="w-full bg-gradient-to-r from-teal-500 via-teal-600 to-amber-600 hover:brightness-110 active:scale-98 transition-all text-white py-3.5 rounded-2xl text-[10.5px] font-black tracking-wider uppercase flex items-center justify-center gap-2 shadow-lg shadow-teal-500/20 cursor-pointer border-none"
             >
               <Sparkles size={14} className="text-amber-200 animate-pulse" />
-              <span>Gunakan AR Khusus HP Bawaan</span>
+              <span>Mulai AR Spasial Nyata (HP Bawaan)</span>
             </button>
             
             <p className="text-[10px] text-slate-400 max-w-xs mx-auto leading-relaxed">
-              Membuka kamera internal HP Anda demi perataan spasial (Spatial Tracking) otomatis di atas permukaan lantai.
+              Membuka Apple AR Quick Look / Google Scene Viewer untuk melacak dan mengunci objek di atas lantai nyata.
             </p>
           </div>
 
