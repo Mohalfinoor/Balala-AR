@@ -444,597 +444,146 @@ const ProductDetailView = ({
 /// --- ARView ---
 const ARView = ({ product, onBack }: { product: Product | null; onBack: () => void; key?: string }) => {
   const ModelViewer = 'model-viewer' as any;
-  const [isScanning, setIsScanning] = useState(true);
-  const [showStory, setShowStory] = useState(false);
-  const [processedImage, setProcessedImage] = useState<string | null>(null);
+  const modelViewerRef = useRef<any>(null);
+  const [modelLoaded, setModelLoaded] = useState(false);
 
-  // Device OS Recognition for Native AR (ARKit/ARCore)
   const isIOS = typeof window !== 'undefined' && /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
   const isAndroid = typeof window !== 'undefined' && /Android/.test(navigator.userAgent);
+  const isMobile = isIOS || isAndroid;
 
-  const handleLaunchNativeAR = () => {
-    if (!product) return;
-    
-    // Select accurate 3D model resources
-    const usdz = product.usdzUrl || "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/SheenChair/USDZ/SheenChair.usdz";
-    const glb = product.glbUrl || "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/SheenChair/glTF-Binary/SheenChair.glb";
-    
-    if (isIOS) {
-      // Create native AR Quick Look anchor element
-      const anchor = document.createElement('a');
-      anchor.setAttribute('rel', 'ar');
-      anchor.setAttribute('href', usdz);
-      // Apple AR Quick look requires an image tag nested inside
-      const img = document.createElement('img');
-      img.src = processedImage || product.image;
-      anchor.appendChild(img);
-      document.body.appendChild(anchor);
-      anchor.click();
-      document.body.removeChild(anchor);
-    } else if (isAndroid) {
-      // Google ARCore Scene Viewer Intent Protocol
-      const sceneViewerUrl = `intent://arvr.google.com/scene-viewer/1.0?file=${encodeURIComponent(glb)}&title=${encodeURIComponent(product.name)}&mode=ar_only#Intent;scheme=https;package=com.google.ar.core;action=android.intent.action.VIEW;S.browser_fallback_url=https://developers.google.com/ar;end`;
-      window.location.href = sceneViewerUrl;
+  const handleLaunchAR = () => {
+    if (modelViewerRef.current) {
+      try {
+        modelViewerRef.current.activateAR();
+      } catch (e) {
+        console.warn("Failed to activate AR natively:", e);
+      }
     }
   };
 
-  // Auto-launch native AR on compatible mobile devices upon mount
+  // Automatically trigger the device's native AR mode on mobile mount
   useEffect(() => {
-    if (product && (isIOS || isAndroid)) {
+    if (product && isMobile) {
       const autoTimer = setTimeout(() => {
-        handleLaunchNativeAR();
+        handleLaunchAR();
       }, 700);
       return () => clearTimeout(autoTimer);
     }
-  }, [product, isIOS, isAndroid]);
+  }, [product, isMobile]);
 
-  // Dynamic Background Chroma Keyer to remove light/studio backgrounds in AR mode
-  useEffect(() => {
-    if (!product) return;
-    setProcessedImage(null);
-
-    const img = new Image();
-    img.crossOrigin = 'anonymous';
-    img.onload = () => {
-      try {
-        const canvas = document.createElement('canvas');
-        canvas.width = img.naturalWidth;
-        canvas.height = img.naturalHeight;
-        const ctx = canvas.getContext('2d');
-        if (!ctx) {
-          setProcessedImage(product.image);
-          return;
-        }
-        ctx.drawImage(img, 0, 0);
-        const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        const data = imgData.data;
-
-        // Strip whitish-gray background or studio lighting
-        for (let i = 0; i < data.length; i += 4) {
-          const r = data[i];
-          const g = data[i + 1];
-          const b = data[i + 2];
-
-          const maxVal = Math.max(r, g, b);
-          const minVal = Math.min(r, g, b);
-          const diff = maxVal - minVal;
-          const avg = (r + g + b) / 3;
-
-          // If the pixel belongs to a light grayish or white studio backdrop
-          if (avg > 150) {
-            // Small color channel differences (gray/white desaturation) or extreme brightness
-            if (diff < 55 || avg > 230) {
-              if (avg > 195) {
-                data[i + 3] = 0; // Completely transparent
-              } else {
-                // Smooth progressive gradient transition at the edges
-                const ratio = (avg - 150) / (195 - 150);
-                data[i + 3] = Math.max(0, Math.round((1 - ratio) * 255));
-              }
-            }
-          }
-        }
-        ctx.putImageData(imgData, 0, 0);
-        setProcessedImage(canvas.toDataURL('image/png'));
-      } catch (err) {
-        console.warn("Chroma keying failed, falling back to original source image:", err);
-        setProcessedImage(product.image);
-      }
-    };
-    img.onerror = () => {
-      setProcessedImage(product.image);
-    };
-    img.src = product.image;
-  }, [product]);
-
-  const isInIframe = typeof window !== 'undefined' && window.self !== window.top;
-
-  // Video Camera State
-  const videoRef = useRef<HTMLVideoElement | null>(null);
-  const [hasCamera, setHasCamera] = useState<boolean>(false);
-  const [cameraError, setCameraError] = useState<string | null>(null);
-
-  // Gyroscope tracking parameters
-  const [gyroEnabled, setGyroEnabled] = useState<boolean>(false);
-  const [gyroPermission, setGyroPermission] = useState<'prompt' | 'granted' | 'denied' | 'unsupported'>('prompt');
-  
-  const initialOrientationRef = useRef<{ alpha: number; beta: number; gamma: number } | null>(null);
-  const [currentOrientation, setCurrentOrientation] = useState<{ alpha: number; beta: number; gamma: number } | null>(null);
-
-  // Position, scale, rotation of the item
-  const [basePosition, setBasePosition] = useState({ x: 0, y: 40 });
-  const [rotation, setRotation] = useState(0);
-  const [scale, setScale] = useState(1.0);
-
-  // Pointer drag trackers
-  const [isDragging, setIsDragging] = useState(false);
-  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
-  const [initialPos, setInitialPos] = useState({ x: 0, y: 0 });
-
-  // 1. Activate Device Camera on Mount
-  useEffect(() => {
-    let stream: MediaStream | null = null;
-    async function initCamera() {
-      try {
-        stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } },
-          audio: false
-        });
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-          setHasCamera(true);
-        }
-      } catch (err: any) {
-        console.warn("Camera streaming failed, falling back to static interior preview:", err);
-        setCameraError(err.message || 'Izin kamera ditolak');
-        setHasCamera(false);
-      }
-    }
-    initCamera();
-
-    return () => {
-      if (stream) {
-        stream.getTracks().forEach(track => track.stop());
-      }
-    };
-  }, []);
-
-  // 2. Scan completion simulate
-  useEffect(() => {
-    const timer = setTimeout(() => setIsScanning(false), 2200);
-    return () => clearTimeout(timer);
-  }, []);
-
-  // 3. Setup device orientation detectors
-  useEffect(() => {
-    // Detect iOS API presence
-    const requestPermissionExists = typeof (DeviceOrientationEvent as any).requestPermission === 'function';
-    if (requestPermissionExists) {
-      setGyroPermission('prompt');
-    } else if (window.DeviceOrientationEvent) {
-      setGyroPermission('granted');
-      setGyroEnabled(true);
-    } else {
-      setGyroPermission('unsupported');
-    }
-  }, []);
-
-  // 4. Orientation listener logic
-  useEffect(() => {
-    if (!gyroEnabled) return;
-
-    const handleOrientation = (e: DeviceOrientationEvent) => {
-      if (e.alpha === null || e.beta === null) return;
-
-      if (!initialOrientationRef.current) {
-        // Log original anchor point
-        initialOrientationRef.current = { alpha: e.alpha, beta: e.beta, gamma: e.gamma || 0 };
-      }
-
-      setCurrentOrientation({
-        alpha: e.alpha,
-        beta: e.beta,
-        gamma: e.gamma || 0
-      });
-    };
-
-    window.addEventListener('deviceorientation', handleOrientation);
-    return () => {
-      window.removeEventListener('deviceorientation', handleOrientation);
-    };
-  }, [gyroEnabled]);
-
-  // Request explicit permission for iOS Safari
-  const requestPermission = async () => {
-    const api = (DeviceOrientationEvent as any).requestPermission;
-    if (typeof api === 'function') {
-      try {
-        const res = await api();
-        if (res === 'granted') {
-          setGyroPermission('granted');
-          setGyroEnabled(true);
-          calibrateAnchor();
-        } else {
-          setGyroPermission('denied');
-          setGyroEnabled(false);
-        }
-      } catch (err) {
-        console.error("Sensor orientation permission error:", err);
-        setGyroPermission('denied');
-      }
-    } else {
-      setGyroEnabled(true);
-      calibrateAnchor();
-    }
-  };
-
-  // Re-pin baseline and capture orientation angles
-  const calibrateAnchor = () => {
-    initialOrientationRef.current = null;
-    setCurrentOrientation(null);
-    setIsScanning(true);
-    setTimeout(() => setIsScanning(false), 1500);
-  };
-
-  // Drag listeners
-  const handlePointerDown = (e: React.PointerEvent) => {
-    if (isScanning) return;
-    setIsDragging(true);
-    setDragStart({ x: e.clientX, y: e.clientY });
-    setInitialPos(basePosition);
-  };
-
-  const handlePointerMove = (e: React.PointerEvent) => {
-    if (!isDragging || isScanning) return;
-    const dx = e.clientX - dragStart.x;
-    const dy = e.clientY - dragStart.y;
-    setBasePosition({
-      x: initialPos.x + dx,
-      y: initialPos.y + dy
-    });
-  };
-
-  const handlePointerUp = () => {
-    setIsDragging(false);
-  };
-
-  // Compute calculated anchor displacement coordinates
-  let gyroX = 0;
-  let gyroY = 0;
-
-  if (gyroEnabled && initialOrientationRef.current && currentOrientation) {
-    let dAlpha = currentOrientation.alpha - initialOrientationRef.current.alpha;
-    if (dAlpha > 180) dAlpha -= 360;
-    if (dAlpha < -180) dAlpha += 360;
-
-    let dBeta = currentOrientation.beta - initialOrientationRef.current.beta;
-    if (dBeta > 180) dBeta -= 360;
-    if (dBeta < -180) dBeta += 360;
-
-    // Pixel per degree coefficients
-    const sensitivityX = 18;
-    const sensitivityY = 22;
-
-    // Invert so the model stays in place in 3D scene relative to phone movement
-    gyroX = -dAlpha * sensitivityX;
-    gyroY = dBeta * sensitivityY;
-  }
-
-  const posX = basePosition.x + gyroX;
-  const posY = basePosition.y + gyroY;
+  if (!product) return null;
 
   return (
     <motion.div 
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 w-full h-screen z-[100] bg-black overflow-hidden flex flex-col select-none touch-none"
+      className="fixed inset-0 w-full h-screen z-[200] bg-slate-950 overflow-hidden flex flex-col"
     >
-      {/* Absolute Background Camera Stream */}
-      <div className="absolute inset-0 w-full h-full z-0 overflow-hidden bg-black">
-        <video 
-          ref={videoRef}
-          playsInline
-          muted
-          autoPlay
-          className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-500 z-0 ${hasCamera ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
-        />
-        
-        {!hasCamera && (
-          <div className="w-full h-full relative">
-            <img 
-              src="https://images.unsplash.com/photo-1583847268964-b28dc8f51f92?q=80&w=1974&auto=format&fit=crop" 
-              alt="Fallback Living Room Feed" 
-              className="w-full h-full object-cover brightness-75"
-              referrerPolicy="no-referrer"
-            />
-            <div className="absolute inset-x-4 top-24 mx-auto max-w-sm bg-black/85 backdrop-blur-md px-5 py-4 rounded-3xl border border-teal-500/30 text-white text-xs text-center z-10 font-sans flex flex-col gap-2.5 shadow-2xl">
-              <span className="font-bold text-teal-300 text-[13px] tracking-wide flex items-center justify-center gap-1.5 uppercase font-serif">
-                {isInIframe ? "🎥 Kamera Dibatasi oleh Iframe" : "🎥 Izin Kamera Diperlukan"}
+      {/* Top Header Overlay */}
+      <div className="absolute top-0 inset-x-0 z-50 bg-gradient-to-b from-slate-950 via-slate-950/80 to-transparent p-5 flex items-center justify-between pointer-events-none">
+        <button 
+          onClick={onBack}
+          className="w-10 h-10 rounded-full bg-black/45 backdrop-blur-md flex items-center justify-center text-white border border-white/10 hover:bg-black/60 transition-colors pointer-events-auto cursor-pointer"
+        >
+          <ChevronLeft size={24} />
+        </button>
+        <span className="text-white text-[10px] font-bold tracking-widest uppercase bg-teal-600/85 backdrop-blur-md px-4 py-2 rounded-full border border-teal-500/20 shadow-lg pointer-events-auto">
+          Mode Kamera AR
+        </span>
+        <div className="w-10 h-10" />
+      </div>
+
+      {/* Main Interactive 3D/AR Viewport */}
+      <div className="flex-1 w-full h-full relative flex items-center justify-center bg-slate-900">
+        <ModelViewer
+          ref={modelViewerRef}
+          src={product.glbUrl}
+          ios-src={product.usdzUrl}
+          alt={product.name}
+          ar
+          ar-modes="webxr scene-viewer quick-look"
+          camera-controls
+          auto-rotate
+          shadow-intensity="1.5"
+          shadow-softness="0.8"
+          style={{ width: '100%', height: '100%', backgroundColor: '#0f172a' }}
+          className="w-full h-full outline-hidden"
+          onLoad={() => setModelLoaded(true)}
+        >
+          {/* Custom style for the default slot-based AR button of model-viewer */}
+          <button 
+            slot="ar-button" 
+            id="ar-button-slot"
+            className="hidden"
+          />
+
+          {!modelLoaded && (
+            <div slot="poster" className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-slate-950 text-white">
+              <div className="w-9 h-9 rounded-full border-3 border-teal-500 border-t-transparent animate-spin" />
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest animate-pulse">
+                Memuat Model Seni 3D Premium...
               </span>
-              <p className="text-slate-300 leading-relaxed text-[11px]">
-                {isInIframe 
-                  ? "Kebijakan keamanan browser melarang akses kamera secara langsung dari dalam bingkai (iframe) AI Studio." 
-                  : "Aplikasi membutuhkan izin kamera Anda untuk memproyeksikan produk seni warisan budaya langsung ke dimensi ruangan Anda."}
-              </p>
-              
-              {isInIframe ? (
-                <div className="text-left bg-teal-950/40 p-2.5 rounded-xl border border-teal-500/10 text-[10px] space-y-1">
-                  <span className="font-bold text-teal-400">Langkah Pengaktifan:</span>
-                  <ol className="list-decimal list-inside text-slate-300 space-y-0.5">
-                    <li>Ketuk tombol <strong className="text-white">"Open in new tab"</strong> di sudut kanan atas layar pratinjau.</li>
-                    <li>Sembulan izin kamera akan muncul di tab baru tersebut.</li>
-                  </ol>
-                </div>
-              ) : (
-                <div className="text-left bg-teal-950/40 p-2.5 rounded-xl border border-teal-500/10 text-[10px] space-y-1">
-                  <span className="font-bold text-teal-400">Langkah Pengaktifan:</span>
-                  <ol className="list-decimal list-inside text-slate-300 space-y-0.5">
-                    <li>Segarkan halaman ini atau ketuk kembali ikon kamera.</li>
-                    <li>Saat browser menanyakan akses kamera, pilih <strong className="text-white">Izinkan (Allow)</strong>.</li>
-                  </ol>
-                </div>
-              )}
-
-              {cameraError && (
-                <div className="text-[9px] text-rose-300 bg-rose-950/30 p-2 rounded-lg font-mono text-left break-all opacity-80">
-                  Sebab detail: {cameraError}
-                </div>
-              )}
             </div>
+          )}
+        </ModelViewer>
+      </div>
+
+      {/* Embedded UI Detail Controls Overlay */}
+      <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-slate-950 via-slate-950/90 to-transparent p-6 pt-20 flex flex-col items-center">
+        <div className="w-full max-w-sm bg-white/5 backdrop-blur-xl border border-white/10 p-5 rounded-3xl shadow-2xl flex flex-col gap-4 text-center">
+          
+          <div>
+            <span className="text-[9px] font-bold text-teal-400 uppercase tracking-widest bg-teal-950/40 border border-teal-500/10 px-2.5 py-0.5 rounded-full">
+              {product.culture} Heritage
+            </span>
+            <h4 className="text-sm font-bold text-white mt-1.5">{product.name}</h4>
+            <p className="text-[11px] text-slate-400 mt-1 line-clamp-1 leading-relaxed">{product.description}</p>
           </div>
-        )}
-        
-        {/* Modern Interactive Grid Overlay removed to prevent background clutter */}
-        
-        {/* 3D Model Simulated Interactive Module */}
-        {!isScanning && product && (
-          <div 
-            onPointerDown={handlePointerDown}
-            onPointerMove={handlePointerMove}
-            onPointerUp={handlePointerUp}
-            onPointerCancel={handlePointerUp}
-            className="absolute z-10 w-80 h-80 touch-none cursor-grab active:cursor-grabbing flex flex-col items-center justify-center select-none"
-            style={{
-              left: `calc(50% + ${posX}px)`,
-              top: `calc(50% + ${posY}px)`,
-              transform: 'translate(-50%, -50%)',
-            }}
-          >
-            {/* Holographic Anchor Ground Target removed to strictly display only the product object */}
 
-            <div 
-              className="relative group transition-transform duration-100 flex flex-col items-center justify-center w-72 h-72"
-              style={{
-                transform: `rotate(${rotation}deg) scale(${scale})`,
-              }}
+          {/* Unified dynamic single button action with NO selector choices */}
+          {isMobile ? (
+            <button
+              onClick={handleLaunchAR}
+              className="w-full bg-gradient-to-r from-teal-500 to-emerald-500 hover:brightness-105 active:scale-98 transition-all text-slate-950 py-3.5 rounded-2xl text-xs font-black tracking-wider uppercase flex items-center justify-center gap-2 shadow-lg shadow-teal-500/20 cursor-pointer border-none"
             >
-              {/* Soft ground shadow beneath product */}
-              <div className="absolute bottom-2 left-1/2 -translate-x-1/2 w-40 h-5 bg-black/25 blur-md rounded-full scale-y-45 mix-blend-multiply pointer-events-none" />
-              
-              {/* Real 3D Model Render instead of 2D image fallback */}
-              <ModelViewer
-                src={product.glbUrl}
-                ios-src={product.usdzUrl}
-                alt={product.name}
-                camera-controls
-                interaction-prompt="none"
-                shadow-intensity="1.5"
-                shadow-softness="1"
-                style={{ width: '100%', height: '100%', backgroundColor: 'transparent' }}
-                className="w-full h-full outline-hidden pointer-events-auto"
-              />
-
-              {/* Glowing label to guide user */}
-              <div 
-                className="absolute -bottom-6 left-1/2 -translate-x-1/2 px-4 py-1.5 rounded-full bg-teal-650/90 backdrop-blur-md text-[10px] font-bold text-white flex items-center gap-1.5 shadow-lg border border-teal-500/20 select-none pointer-events-none"
-              >
-                <Move size={12} className="text-teal-200" />
-                <span>Sentuh & Geser di Sini</span>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Plane Search Pulse Indicator */}
-        <AnimatePresence>
-          {isScanning && (
-            <motion.div 
-              exit={{ opacity: 0 }}
-              className="absolute inset-0 flex items-center justify-center z-20 bg-black/40 backdrop-blur-[2px]"
-            >
-              <div className="relative w-64 h-64 flex flex-col items-center justify-center">
-                <motion.div 
-                  animate={{ 
-                    scale: [1, 1.1, 1],
-                    opacity: [0.35, 0.7, 0.35]
-                  }}
-                  transition={{ repeat: Infinity, duration: 2.0 }}
-                  className="absolute inset-0 border-2 border-teal-400/60 rounded-3xl"
-                />
-                <motion.div 
-                  animate={{ top: ['4%', '96%', '4%'] }}
-                  transition={{ repeat: Infinity, duration: 2.2, ease: "linear" }}
-                  className="absolute left-4 right-4 h-0.5 bg-teal-400 shadow-[0_0_15px_rgba(45,212,191,0.95)]"
-                />
-                <div className="bg-black/75 backdrop-blur-md px-6 py-3 rounded-full border border-teal-500/20 shadow-xl text-center">
-                  <p className="text-teal-300 text-xs font-bold tracking-widest uppercase animate-pulse">
-                    Mencari Bidang Datar...
+              <Sparkles size={16} className="text-slate-950" />
+              <span>Buka Kamera AR HP</span>
+            </button>
+          ) : (
+            <div className="flex flex-col gap-3">
+              {/* Desktop Fallback rendering high quality custom QR Code portal */}
+              <div className="p-3 bg-white rounded-2xl flex items-center gap-3.5 border border-slate-100 text-left">
+                <div className="w-16 h-16 bg-slate-50 rounded-xl overflow-hidden flex items-center justify-center flex-shrink-0 relative border border-slate-200">
+                  <svg viewBox="0 0 100 100" className="w-12 h-12 text-slate-800">
+                    <path d="M0 0h30v30H0zm40 0h10v10h10V0h30v30H70v10h10v10h10v40H60V80H50v10H40V70h10V60H30v30H0V60h30v10h10V50H30V40H20V30h20v10h10V30l10-10H40v10h-10zm40 10H70v10h10V10zM10 10h10v10H10V10zm50 50h10v10H60V60zm10 10h10v10H70V70z" fill="currentColor"/>
+                  </svg>
+                  <div className="absolute inset-0 bg-black/5" />
+                </div>
+                <div className="flex-1">
+                  <span className="text-[9px] uppercase font-black text-teal-600 tracking-wider">Metode Scan QR</span>
+                  <h5 className="text-[11px] font-bold text-slate-850 leading-tight">Pindai Dengan Kamera HP</h5>
+                  <p className="text-[10px] text-slate-500 mt-0.5 leading-snug">
+                    Pindai layar Anda dengan smartphone untuk melihat model dalam AR nyata di ruangan Anda!
                   </p>
                 </div>
               </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
-
-      {/* AR HUD Display Controls overlay */}
-      <div className="relative z-50 flex flex-col h-full pointer-events-none">
-        
-        {/* HUD Header Strip */}
-        <div className="px-6 py-5 flex justify-between items-center pointer-events-auto bg-gradient-to-b from-black/60 to-transparent">
-          <button 
-            onClick={onBack}
-            className="w-11 h-11 rounded-full bg-black/45 backdrop-blur-md flex items-center justify-center text-white border border-white/10 hover:bg-black/60 transition-colors pointer-events-auto cursor-pointer"
-          >
-            <ArrowLeft size={20} />
-          </button>
-          
-          <div className="flex flex-col items-center gap-1">
-            <div className="bg-black/55 backdrop-blur-md px-4 py-2 rounded-full border border-teal-500/20 flex items-center gap-2">
-              <div className="w-2 h-2 bg-teal-400 rounded-full animate-ping" />
-              <span className="text-white text-[10px] sm:text-xs font-bold tracking-wider uppercase">Live Camera AR</span>
-            </div>
-            
-            {gyroEnabled ? (
-              <span className="text-[9px] font-bold text-teal-400 bg-teal-950/70 border border-teal-500/20 px-2.5 py-0.5 rounded-full backdrop-blur-xs">
-                ⚓ Sensor Jangkar Gyroscope Aktif
-              </span>
-            ) : gyroPermission === 'prompt' ? (
-              <button 
-                onClick={requestPermission}
-                className="text-[9px] font-bold text-amber-300 bg-amber-950/70 hover:bg-amber-900 border border-amber-500/20 px-2.5 py-0.5 rounded-full backdrop-blur-xs flex items-center gap-1 cursor-pointer pointer-events-auto"
-              >
-                🔐 Klik Aktifkan Sensor Jangkar Ruang
-              </button>
-            ) : (
-              <span className="text-[9px] font-bold text-slate-400 bg-slate-900/70 border border-slate-500/20 px-2.5 py-0.5 rounded-full backdrop-blur-xs">
-                Mode Peletakan Manual (Touch & Drag)
-              </span>
-            )}
-          </div>
-          
-          <button className="w-11 h-11 rounded-full bg-black/45 backdrop-blur-md flex items-center justify-center text-white border border-white/10 cursor-pointer pointer-events-auto">
-            <Share2 size={18} />
-          </button>
-        </div>
-
-        {/* HUD Footer details and fine orientation calibration drawers */}
-        <div className="mt-auto pb-6 px-6 pointer-events-auto max-w-md mx-auto w-full bg-gradient-to-t from-black/50 via-black/25 to-transparent">
-          
-          {/* Virtual Target Furniture Info Cover */}
-          {!isScanning && product && (
-            <motion.div 
-              initial={{ opacity: 0, y: 15 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="bg-white/95 backdrop-blur-xl rounded-[24px] p-3 mb-4 flex items-center gap-3.5 shadow-2xl border border-white/80"
-            >
-              <div className="w-12 h-12 rounded-xl overflow-hidden bg-slate-100 flex-shrink-0">
-                <img src={processedImage || product.image} alt={product.name} className="w-full h-full object-cover" />
-              </div>
-              <div className="flex-1">
-                <h4 className="text-xs font-bold text-slate-800 leading-tight">{product.name}</h4>
-                <p className="text-[11px] text-teal-600 font-bold mt-0.5">{product.price}</p>
-              </div>
-              <div className="bg-teal-50 px-2 py-1 rounded-lg text-[9px] text-teal-800 font-bold flex flex-col items-center">
-                <span>{product.culture}</span>
-                <span>Heritage</span>
-              </div>
-            </motion.div>
-          )}
-
-          {/* Luxury calibration control bay */}
-          <div className="bg-black/65 backdrop-blur-xl p-4 rounded-3xl border border-white/10 flex flex-col gap-3">
-            
-            {/* Drag translation parameters */}
-            {!isScanning && (
-              <div className="space-y-2.5 pb-2 border-b border-white/5 text-slate-300">
-                <div className="flex items-center gap-3">
-                  <span className="text-white text-[10px] font-bold w-12 opacity-85">Putar</span>
-                  <input 
-                    type="range" 
-                    min="-180" 
-                    max="180" 
-                    value={rotation} 
-                    onChange={(e) => setRotation(Number(e.target.value))}
-                    className="flex-1 accent-teal-400 h-1 bg-white/20 rounded-lg appearance-none cursor-pointer"
-                  />
-                  <span className="text-teal-300 text-[10px] font-mono w-8 text-right">{rotation}°</span>
-                </div>
-              </div>
-            )}
-
-
-
-            {/* Calibration trigger row */}
-            <div className="flex items-center justify-between gap-3">
-              <button 
-                onClick={() => { setBasePosition({ x: 0, y: 40 }); setRotation(0); setScale(1.0); if (gyroEnabled) calibrateAnchor(); }}
-                className="w-12 h-12 rounded-full bg-white/10 hover:bg-white/15 transition-colors flex items-center justify-center text-white border border-white/10 cursor-pointer"
-                title="Atur Ulang Peletakan"
-              >
-                <RotateCcw size={18} />
-              </button>
               
               <button 
-                onClick={calibrateAnchor}
-                className="flex-1 bg-teal-600 hover:bg-teal-500 active:scale-95 transition-all text-white py-3.5 rounded-full text-xs font-bold flex items-center justify-center gap-1.5 shadow-lg shadow-teal-500/20 cursor-pointer"
+                onClick={handleLaunchAR}
+                className="w-full bg-slate-800 hover:bg-slate-700 transition-colors text-white py-3 rounded-2xl text-[11px] font-bold leading-none cursor-pointer border border-white/5"
               >
-                <Scan size={16} />
-                <span>Tekan untuk Kalibrasi / Gantung</span>
-              </button>
-
-              <button 
-                onClick={() => setShowStory(true)}
-                className="w-12 h-12 rounded-full bg-white hover:bg-slate-100 text-teal-950 flex flex-col items-center justify-center shadow-lg transition-colors cursor-pointer"
-              >
-                <BookOpen size={16} />
-                <span className="text-[7px] font-extrabold mt-0.5">Filosofi</span>
+                Coba Kamera AR Simulasi WebXR
               </button>
             </div>
+          )}
 
-            {/* Instruction tip */}
-            <div className="text-[10px] text-center text-slate-400 italic">
-              💡 {gyroEnabled ? "Gesper hp Anda: Obyek menempel di ruangan dan memantulkan pergerakan Anda!" : "Sentuh & geser untuk memindahkan obyek di layar."}
-            </div>
-
+          <div className="text-[9.5px] text-slate-400 italic">
+            💡 Model premium ini diproyeksikan langsung dalam format asli 3D (.GLB). Hand-crafted oleh pengrajin lokal.
           </div>
-          
+
         </div>
       </div>
-
-      {/* Philosophy stories dialogue */}
-      <AnimatePresence>
-        {showStory && product && (
-          <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[200] bg-black/80 backdrop-blur-md flex items-center justify-center p-4"
-          >
-            <motion.div 
-              initial={{ scale: 0.95, y: 15 }}
-              animate={{ scale: 1, y: 0 }}
-              exit={{ scale: 0.95, y: 15 }}
-              className="bg-white rounded-[32px] w-full max-w-sm overflow-hidden flex flex-col"
-            >
-              <div className="relative h-48 sm:h-52">
-                <img src={product.image} alt={product.name} className="w-full h-full object-cover" />
-                <div className="absolute inset-0 bg-gradient-to-t from-white via-transparent to-transparent" />
-                <button 
-                  onClick={() => setShowStory(false)}
-                  className="absolute top-4 right-4 w-9 h-9 rounded-full bg-black/35 backdrop-blur-md flex items-center justify-center text-white hover:bg-black/50 transition-colors"
-                >
-                  <ChevronLeft className="rotate-90" size={18} />
-                </button>
-              </div>
-              <div className="p-6">
-                <span className="text-[10px] font-bold text-teal-600 uppercase tracking-widest block mb-1">Filosofi & Nilai Seni</span>
-                <h3 className="text-xl font-serif font-bold text-slate-900 mb-2">{product.name}</h3>
-                <p className="text-slate-600 leading-relaxed font-serif italic text-sm">
-                  "{product.philosophy}"
-                </p>
-                <button 
-                  onClick={() => setShowStory(false)}
-                  className="mt-6 w-full bg-teal-950 hover:bg-teal-900 transition-colors text-white py-3 rounded-full font-bold text-xs"
-                >
-                  Tutup Filosofi
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
     </motion.div>
   );
 };
