@@ -27,7 +27,8 @@ import {
   CheckCircle2,
   Shield,
   Trash2,
-  Plus
+  Plus,
+  Sparkles
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -60,6 +61,8 @@ interface Product {
   description: string;
   philosophy: string;
   status?: 'pending' | 'approved' | 'rejected';
+  glbUrl?: string;
+  usdzUrl?: string;
 }
 
 interface Culture {
@@ -152,7 +155,9 @@ const PRODUCTS: Product[] = [
     culture: "Toraja",
     rating: 4.8,
     description: "Kursi tamu premium yang dibuat dari kayu jati pilihan, didesain dengan ukiran khas Toraja yang dipahat manual oleh pengrajin lokal berpengalaman.",
-    philosophy: "Motif Pa'reppo pada kursi ini melambangkan keteguhan hati, kemantapan berfikir, dan kemapanan dalam jenjang kehidupan masyarakat adat Toraja."
+    philosophy: "Motif Pa'reppo pada kursi ini melambangkan keteguhan hati, kemantapan berfikir, dan kemapanan dalam jenjang kehidupan masyarakat adat Toraja.",
+    glbUrl: "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/SheenChair/glTF-Binary/SheenChair.glb",
+    usdzUrl: "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/SheenChair/USDZ/SheenChair.usdz"
   },
   {
     id: '2',
@@ -162,7 +167,9 @@ const PRODUCTS: Product[] = [
     culture: "Bugis",
     rating: 4.9,
     description: "Lemari pakaian mahakarya seni ukir Bugis dengan garis sulur organik yang elegan, sangat luas dan memperindah interior kamar tidur mewah Anda.",
-    philosophy: "Motif 'sulur' pada lemari ini merepresentasikan pertumbuhan berkelanjutan, kemakmuran, dan keterhubungan segala lini kehidupan dalam falsafah adat suku Bugis."
+    philosophy: "Motif 'sulur' pada lemari ini merepresentasikan pertumbuhan berkelanjutan, kemakmuran, dan keterhubungan segala lini kehidupan dalam falsafah adat suku Bugis.",
+    glbUrl: "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/CarbonCabinet/glTF-Binary/CarbonCabinet.glb",
+    usdzUrl: "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/CarbonCabinet/USDZ/CarbonCabinet.usdz"
   },
   {
     id: '3',
@@ -172,7 +179,9 @@ const PRODUCTS: Product[] = [
     culture: "Toraja",
     rating: 4.7,
     description: "Meja makan kayu jati solid yang dihiasi ukiran geometris Toraja penuh detail presisi, cocok untuk perjamuan keluarga yang hangat.",
-    philosophy: "Passura' melambangkan kearifan lokal Toraja yang dituangkan dalam ukiran geometris presisi, mengajarkan ketelitian serta keteraturan hukum semesta."
+    philosophy: "Passura' melambangkan kearifan lokal Toraja yang dituangkan dalam ukiran geometris presisi, mengajarkan ketelitian serta keteraturan hukum semesta.",
+    glbUrl: "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/Stool/glTF-Binary/Stool.glb",
+    usdzUrl: "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/Stool/USDZ/Stool.usdz"
   },
   {
     id: '4',
@@ -182,7 +191,9 @@ const PRODUCTS: Product[] = [
     culture: "Makassar",
     rating: 4.7,
     description: "Lemari pajangan luxury dengan ukiran relief epik penjelajahan kapal legendaris Phinisi Bugis-Makassar yang mengarungi samudera luas.",
-    philosophy: "Ukiran kapal Phinisi yang legendaris melambangkan keteguhan berjuang, tekad pantang menyerah, keberanian, dan jiwa pelaut sejati masyarakat Makassar."
+    philosophy: "Ukiran kapal Phinisi yang legendaris melambangkan keteguhan berjuang, tekad pantang menyerah, keberanian, dan jiwa pelaut sejati masyarakat Makassar.",
+    glbUrl: "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/Lantern/glTF-Binary/Lantern.glb",
+    usdzUrl: "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/Lantern/USDZ/Lantern.usdz"
   },
   {
     id: '5',
@@ -192,7 +203,9 @@ const PRODUCTS: Product[] = [
     culture: "Mandar",
     rating: 4.6,
     description: "Sofa santai dengan bantalan empuk berlapis tenun motif sutra Saqbe Mandar asli, memadukan modernitas furnitur dengan sentuhan kerajinan wastra nusantara.",
-    philosophy: "Terinspirasi dari tenun Saqbe Mandar, melambangkan kerapian tatanan kebersamaan, kehangatan rasa, dan kelembutan tradisi leluhur dalam harmoni kontemporer."
+    philosophy: "Terinspirasi dari tenun Saqbe Mandar, melambangkan kerapian tatanan kebersamaan, kehangatan rasa, dan kelembutan tradisi leluhur dalam harmoni kontemporer.",
+    glbUrl: "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/GlamVelvetSofa/glTF-Binary/GlamVelvetSofa.glb",
+    usdzUrl: "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/GlamVelvetSofa/USDZ/GlamVelvetSofa.usdz"
   },
   {
     id: '6',
@@ -202,7 +215,21 @@ const PRODUCTS: Product[] = [
     culture: "Bugis",
     rating: 4.5,
     description: "Meja buffet serbaguna yang anggun, mengkolaborasikan aksen kaligrafi bermakna spiritual dengan ornamen geometris lokal tanah Bugis.",
-    philosophy: "Perpaduan seni kaligrafi dengan motif sakral tradisional Bugis yang melambangkan berkah spiritualitas, ketenangan batin, serta perlindungan Ilahi."
+    philosophy: "Perpaduan seni kaligrafi dengan motif sakral tradisional Bugis yang melambangkan berkah spiritualitas, ketenangan batin, serta perlindungan Ilahi.",
+    glbUrl: "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/ModernUpholsteredChair/glTF-Binary/ModernUpholsteredChair.glb",
+    usdzUrl: "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/ModernUpholsteredChair/USDZ/ModernUpholsteredChair.usdz"
+  },
+  {
+    id: '7',
+    name: "Singgasana Bone 3D (AR Test Model)",
+    price: "Rp 15.000.000",
+    image: torajaChairImage,
+    culture: "Bone",
+    rating: 5.0,
+    description: "Model representasi Kursi Singgasana kerajaan Bone berlapis ornamen jati megah. Dibuat khusus sebagai model sampel uji coba fungsionalitas visualisasi AR 3D interaktif yang presisi secara spasial.",
+    philosophy: "Mewakili nilai keagungan, kejayaan, keadilan, dan keteguhan kepemimpinan spiritual spiritualitas Bugis-Makassar.",
+    glbUrl: "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/ModernUpholsteredChair/glTF-Binary/ModernUpholsteredChair.glb",
+    usdzUrl: "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/ModernUpholsteredChair/USDZ/ModernUpholsteredChair.usdz"
   }
 ];
 
@@ -222,40 +249,98 @@ const ProductDetailView = ({
   onToggleFavorite: () => void;
   onAddToCart: () => void;
   key?: string;
-}) => (
-  <motion.div 
-    initial={{ opacity: 0, scale: 0.98 }}
-    animate={{ opacity: 1, scale: 1 }}
-    exit={{ opacity: 0, scale: 0.98 }}
-    className="fixed inset-0 z-[100] bg-slate-50/95 backdrop-blur-md overflow-y-auto no-scrollbar flex items-center justify-center p-0 md:p-6 lg:p-12"
-  >
-    <div className="w-full max-w-5xl bg-white min-h-screen md:min-h-0 md:rounded-3xl shadow-2xl relative overflow-hidden flex flex-col md:flex-row">
-      
-      {/* Left Pane: Image Showcase */}
-      <div className="relative h-[45vh] md:h-[600px] md:w-1/2 w-full bg-slate-100 flex-shrink-0">
-        <img 
-          src={product.image} 
-          alt={product.name} 
-          className="w-full h-full object-cover"
-          referrerPolicy="no-referrer"
-        />
-        <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-black/20" />
+}) => {
+  const [activeMediaTab, setActiveMediaTab] = useState<'3d' | '2d'>(product.glbUrl ? '3d' : '2d');
+  const ModelViewer = 'model-viewer' as any;
+
+  return (
+    <motion.div 
+      initial={{ opacity: 0, scale: 0.98 }}
+      animate={{ opacity: 1, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.98 }}
+      className="fixed inset-0 z-[100] bg-slate-50/95 backdrop-blur-md overflow-y-auto no-scrollbar flex items-center justify-center p-0 md:p-6 lg:p-12"
+    >
+      <div className="w-full max-w-5xl bg-white min-h-screen md:min-h-0 md:rounded-3xl shadow-2xl relative overflow-hidden flex flex-col md:flex-row">
         
-        <div className="absolute top-4 left-4 right-4 flex justify-between items-center z-10">
-          <button 
-            onClick={onBack}
-            className="w-10 h-10 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center text-white border border-white/20 hover:bg-white/40 transition-colors cursor-pointer"
-          >
-            <ChevronLeft size={24} />
-          </button>
-          <button 
-            onClick={onToggleFavorite}
-            className="w-10 h-10 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center text-white border border-white/20 hover:bg-white/40 transition-colors cursor-pointer"
-          >
-            <Heart size={20} className={isFavorite ? "fill-rose-500 text-rose-500 animate-pulse" : "hover:fill-rose-500 transition-colors"} />
-          </button>
+        {/* Left Pane: Interactive 3D Showcase or Image Showcase */}
+        <div className="relative h-[45vh] md:h-[600px] md:w-1/2 w-full bg-[#f8fafc] flex-shrink-0 flex items-center justify-center overflow-hidden">
+          {activeMediaTab === '3d' && product.glbUrl ? (
+            <div className="w-full h-full relative" id="threeDContainer">
+              <ModelViewer
+                src={product.glbUrl}
+                ios-src={product.usdzUrl}
+                alt={product.name}
+                ar
+                ar-modes="webxr scene-viewer quick-look"
+                camera-controls
+                auto-rotate
+                auto-rotate-delay="1500"
+                interaction-prompt="auto"
+                shadow-intensity="1.5"
+                shadow-softness="1"
+                style={{ width: '100%', height: '100%', backgroundColor: '#f8fafc' }}
+                className="w-full h-full outline-hidden"
+              >
+                <div slot="poster" className="absolute inset-0 flex flex-col items-center justify-center bg-slate-50/80 backdrop-blur-xs gap-3">
+                  <div className="w-8 h-8 rounded-full border-2 border-teal-600 border-t-transparent animate-spin" />
+                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest animate-pulse">Menyiapkan Model Seni 3D...</span>
+                </div>
+              </ModelViewer>
+            </div>
+          ) : (
+            <div className="w-full h-full relative">
+              <img 
+                src={product.image} 
+                alt={product.name} 
+                className="w-full h-full object-cover"
+                referrerPolicy="no-referrer"
+              />
+              <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-black/25" />
+            </div>
+          )}
+          
+          {/* Back/Favorite button Overlay */}
+          <div className="absolute top-4 left-4 right-4 flex justify-between items-center z-10">
+            <button 
+              onClick={onBack}
+              className="w-10 h-10 rounded-full bg-black/35 backdrop-blur-md flex items-center justify-center text-white border border-white/20 hover:bg-black/50 transition-colors cursor-pointer"
+            >
+              <ChevronLeft size={24} />
+            </button>
+            <button 
+              onClick={onToggleFavorite}
+              className="w-10 h-10 rounded-full bg-black/35 backdrop-blur-md flex items-center justify-center text-white border border-white/20 hover:bg-black/50 transition-colors cursor-pointer"
+            >
+              <Heart size={20} className={isFavorite ? "fill-rose-500 text-rose-500 animate-pulse" : "hover:fill-rose-500 transition-colors"} />
+            </button>
+          </div>
+
+          {/* Interactive 3D / Photo Mode Toggles */}
+          {product.glbUrl && (
+            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20 flex bg-black/55 backdrop-blur-md p-1 rounded-full border border-white/10 shadow-lg">
+              <button
+                onClick={() => setActiveMediaTab('3d')}
+                className={`px-4 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider transition-all duration-300 ${
+                  activeMediaTab === '3d'
+                    ? 'bg-gradient-to-r from-teal-500 to-amber-500 text-slate-950 font-black shadow-md'
+                    : 'text-white/70 hover:text-white'
+                }`}
+              >
+                🎥 Interaktif 3D
+              </button>
+              <button
+                onClick={() => setActiveMediaTab('2d')}
+                className={`px-4 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider transition-all duration-300 ${
+                  activeMediaTab === '2d'
+                    ? 'bg-gradient-to-r from-teal-500 to-amber-500 text-slate-950 font-black shadow-md'
+                    : 'text-white/70 hover:text-white'
+                }`}
+              >
+                🖼️ Foto 2D
+              </button>
+            </div>
+          )}
         </div>
-      </div>
 
       {/* Right Pane: Detailed Content */}
       <div className="flex-1 p-6 md:p-10 flex flex-col justify-between overflow-y-auto max-h-[55vh] md:max-h-[600px] no-scrollbar pb-48 md:pb-10">
@@ -352,12 +437,45 @@ const ProductDetailView = ({
     </div>
   </motion.div>
 );
+};
 
 /// --- ARView ---
 const ARView = ({ product, onBack }: { product: Product | null; onBack: () => void; key?: string }) => {
   const [isScanning, setIsScanning] = useState(true);
   const [showStory, setShowStory] = useState(false);
   const [processedImage, setProcessedImage] = useState<string | null>(null);
+
+  // Device OS Recognition for Native AR (ARKit/ARCore)
+  const isIOS = typeof window !== 'undefined' && /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
+  const isAndroid = typeof window !== 'undefined' && /Android/.test(navigator.userAgent);
+
+  const handleLaunchNativeAR = () => {
+    if (!product) return;
+    
+    // Select accurate 3D model resources
+    const usdz = product.usdzUrl || "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/SheenChair/USDZ/SheenChair.usdz";
+    const glb = product.glbUrl || "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/SheenChair/glTF-Binary/SheenChair.glb";
+    
+    if (isIOS) {
+      // Create native AR Quick Look anchor element
+      const anchor = document.createElement('a');
+      anchor.setAttribute('rel', 'ar');
+      anchor.setAttribute('href', usdz);
+      // Apple AR Quick look requires an image tag nested inside
+      const img = document.createElement('img');
+      img.src = processedImage || product.image;
+      anchor.appendChild(img);
+      document.body.appendChild(anchor);
+      anchor.click();
+      document.body.removeChild(anchor);
+    } else if (isAndroid) {
+      // Google ARCore Scene Viewer Intent Protocol
+      const sceneViewerUrl = `intent://arvr.google.com/scene-viewer/1.0?file=${encodeURIComponent(glb)}&title=${encodeURIComponent(product.name)}&mode=ar_only#Intent;scheme=https;package=com.google.ar.core;action=android.intent.action.VIEW;S.browser_fallback_url=https://developers.google.com/ar;end`;
+      window.location.href = sceneViewerUrl;
+    } else {
+      alert("Mode AR Realistis (ARKit / ARCore) membutuhkan perangkat seluler yang mendukung AR. Buka di HP Android atau iPhone Anda untuk mencoba!");
+    }
+  };
 
   // Dynamic Background Chroma Keyer to remove light/studio backgrounds in AR mode
   useEffect(() => {
@@ -813,6 +931,17 @@ const ARView = ({ product, onBack }: { product: Product | null; onBack: () => vo
                   <span className="text-teal-300 text-[10px] font-mono w-8 text-right">{rotation}°</span>
                 </div>
               </div>
+            )}
+
+            {/* Real 3D ARKit / ARCore launcher */}
+            {!isScanning && product && (
+              <button 
+                onClick={handleLaunchNativeAR}
+                className="w-full bg-gradient-to-r from-amber-500 via-orange-500 to-teal-600 hover:brightness-110 active:scale-[0.99] transition-all text-white py-3 px-4 rounded-2xl text-xs font-black tracking-wider uppercase flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20 cursor-pointer pointer-events-auto border border-white/10"
+              >
+                <Sparkles size={16} className="text-amber-200 animate-spin" style={{ animationDuration: '4s' }} />
+                <span>Mulai AR Realistis (ARKit / ARCore)</span>
+              </button>
             )}
 
             {/* Calibration trigger row */}
@@ -1363,6 +1492,14 @@ function ProductCard({
               </span>
             </div>
           )}
+          {product.glbUrl && (
+            <div className="absolute top-2 left-2 animate-fade-in z-10">
+              <span className="px-2 py-1 rounded-lg text-[8px] font-black tracking-widest uppercase shadow-md bg-gradient-to-r from-teal-500 via-teal-600 to-amber-500 text-white flex items-center gap-1.5 border border-white/25">
+                <Sparkles size={8} className="animate-spin text-amber-200" style={{ animationDuration: '3s' }} />
+                AR 3D Model
+              </span>
+            </div>
+          )}
           <div className="absolute top-2 right-2 flex gap-1 animate-fade-in">
             <button 
               onClick={(e) => { e.stopPropagation(); onToggleFavorite(); }}
@@ -1479,8 +1616,8 @@ export default function App() {
       const saved = localStorage.getItem('ballaar_products');
       if (saved) {
         const parsed: Product[] = JSON.parse(saved);
-        // Force update default products' details (image, name, description, philosophy) to latest clean imagery
-        return parsed.map((p) => {
+        // Force update default products' details (including premium 3D models) to latest configuration
+        const updatedParsed = parsed.map((p) => {
           const defaultProd = PRODUCTS.find((dp) => dp.id === p.id);
           if (defaultProd) {
             return {
@@ -1488,11 +1625,20 @@ export default function App() {
               image: defaultProd.image,
               name: defaultProd.name,
               description: defaultProd.description,
-              philosophy: defaultProd.philosophy
+              philosophy: defaultProd.philosophy,
+              glbUrl: defaultProd.glbUrl,
+              usdzUrl: defaultProd.usdzUrl
             };
           }
           return p;
         });
+
+        // Auto-merge any newly added default products (e.g., ID '7' Singgasana Bone 3D) that aren't in cached stored items
+        const missingDefaults = PRODUCTS.filter(
+          (dp) => !updatedParsed.some((up) => up.id === dp.id)
+        );
+
+        return [...updatedParsed, ...missingDefaults];
       }
       return PRODUCTS;
     } catch {
