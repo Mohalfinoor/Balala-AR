@@ -28,7 +28,8 @@ import {
   Shield,
   Trash2,
   Plus,
-  Sparkles
+  Sparkles,
+  Move
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -442,6 +443,7 @@ const ProductDetailView = ({
 
 /// --- ARView ---
 const ARView = ({ product, onBack }: { product: Product | null; onBack: () => void; key?: string }) => {
+  const ModelViewer = 'model-viewer' as any;
   const [isScanning, setIsScanning] = useState(true);
   const [showStory, setShowStory] = useState(false);
   const [processedImage, setProcessedImage] = useState<string | null>(null);
@@ -473,10 +475,18 @@ const ARView = ({ product, onBack }: { product: Product | null; onBack: () => vo
       // Google ARCore Scene Viewer Intent Protocol
       const sceneViewerUrl = `intent://arvr.google.com/scene-viewer/1.0?file=${encodeURIComponent(glb)}&title=${encodeURIComponent(product.name)}&mode=ar_only#Intent;scheme=https;package=com.google.ar.core;action=android.intent.action.VIEW;S.browser_fallback_url=https://developers.google.com/ar;end`;
       window.location.href = sceneViewerUrl;
-    } else {
-      alert("Mode AR Realistis (ARKit / ARCore) membutuhkan perangkat seluler yang mendukung AR. Buka di HP Android atau iPhone Anda untuk mencoba!");
     }
   };
+
+  // Auto-launch native AR on compatible mobile devices upon mount
+  useEffect(() => {
+    if (product && (isIOS || isAndroid)) {
+      const autoTimer = setTimeout(() => {
+        handleLaunchNativeAR();
+      }, 700);
+      return () => clearTimeout(autoTimer);
+    }
+  }, [product, isIOS, isAndroid]);
 
   // Dynamic Background Chroma Keyer to remove light/studio backgrounds in AR mode
   useEffect(() => {
@@ -794,24 +804,34 @@ const ARView = ({ product, onBack }: { product: Product | null; onBack: () => vo
             {/* Holographic Anchor Ground Target removed to strictly display only the product object */}
 
             <div 
-              className="relative group transition-transform duration-100 flex items-center justify-center"
+              className="relative group transition-transform duration-100 flex flex-col items-center justify-center w-72 h-72"
               style={{
                 transform: `rotate(${rotation}deg) scale(${scale})`,
               }}
             >
               {/* Soft ground shadow beneath product */}
-              <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 w-44 h-6 bg-black/35 blur-md rounded-full scale-y-45 mix-blend-multiply pointer-events-none" />
+              <div className="absolute bottom-2 left-1/2 -translate-x-1/2 w-40 h-5 bg-black/25 blur-md rounded-full scale-y-45 mix-blend-multiply pointer-events-none" />
               
-              {/* Product Render Image with canvas-processed alpha transparent transparency */}
-              <img 
-                src={processedImage || product.image} 
-                alt={product.name} 
-                className="w-full h-full max-h-60 object-contain drop-shadow-[0_25px_20px_rgba(0,0,0,0.5)] select-none pointer-events-none"
-                draggable={false}
-                referrerPolicy="no-referrer"
+              {/* Real 3D Model Render instead of 2D image fallback */}
+              <ModelViewer
+                src={product.glbUrl}
+                ios-src={product.usdzUrl}
+                alt={product.name}
+                camera-controls
+                interaction-prompt="none"
+                shadow-intensity="1.5"
+                shadow-softness="1"
+                style={{ width: '100%', height: '100%', backgroundColor: 'transparent' }}
+                className="w-full h-full outline-hidden pointer-events-auto"
               />
-              
-              {/* Interactive Target Outlines removed to satisfy clean product-only visualization */}
+
+              {/* Glowing label to guide user */}
+              <div 
+                className="absolute -bottom-6 left-1/2 -translate-x-1/2 px-4 py-1.5 rounded-full bg-teal-650/90 backdrop-blur-md text-[10px] font-bold text-white flex items-center gap-1.5 shadow-lg border border-teal-500/20 select-none pointer-events-none"
+              >
+                <Move size={12} className="text-teal-200" />
+                <span>Sentuh & Geser di Sini</span>
+              </div>
             </div>
           </div>
         )}
@@ -934,16 +954,7 @@ const ARView = ({ product, onBack }: { product: Product | null; onBack: () => vo
               </div>
             )}
 
-            {/* Real 3D ARKit / ARCore launcher */}
-            {!isScanning && product && (
-              <button 
-                onClick={handleLaunchNativeAR}
-                className="w-full bg-gradient-to-r from-amber-500 via-orange-500 to-teal-600 hover:brightness-110 active:scale-[0.99] transition-all text-white py-3 px-4 rounded-2xl text-xs font-black tracking-wider uppercase flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20 cursor-pointer pointer-events-auto border border-white/10"
-              >
-                <Sparkles size={16} className="text-amber-200 animate-spin" style={{ animationDuration: '4s' }} />
-                <span>Mulai AR Realistis (ARKit / ARCore)</span>
-              </button>
-            )}
+
 
             {/* Calibration trigger row */}
             <div className="flex items-center justify-between gap-3">
