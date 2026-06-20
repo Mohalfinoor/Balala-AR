@@ -299,7 +299,7 @@ const ProductDetailView = ({
                 ios-src={product.usdzUrl}
                 alt={product.name}
                 ar
-                ar-modes="webxr scene-viewer quick-look"
+                ar-modes="webxr quick-look"
                 camera-controls
                 auto-rotate
                 auto-rotate-delay="1500"
@@ -478,6 +478,7 @@ const ARView = ({ product, onBack }: { product: Product | null; onBack: () => vo
   const [modelLoaded, setModelLoaded] = useState(false);
   const [cameraActive, setCameraActive] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
+  const [bypassCameraError, setBypassCameraError] = useState(false);
   const [isIOS, setIsIOS] = useState(false);
   const [isAndroid, setIsAndroid] = useState(false);
 
@@ -497,6 +498,11 @@ const ARView = ({ product, onBack }: { product: Product | null; onBack: () => vo
     let activeStream: MediaStream | null = null;
     
     async function startCamera() {
+      if (!navigator || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        console.warn("navigator.mediaDevices atau getUserMedia tidak terdefinisi pada browser ini.");
+        setCameraError("Akses kamera tidak diizinkan oleh sistem keamanan browser atau sedang berada dalam integrasi preview (WebRTC dinonaktifkan di iframe).");
+        return;
+      }
       try {
         // Attempt to launch the rear environment camera first for the best AR experience
         activeStream = await navigator.mediaDevices.getUserMedia({
@@ -505,6 +511,7 @@ const ARView = ({ product, onBack }: { product: Product | null; onBack: () => vo
         if (videoRef.current) {
           videoRef.current.srcObject = activeStream;
           setCameraActive(true);
+          setCameraError(null);
         }
       } catch (err) {
         console.warn("Kamera belakang 'environment' tidak dapat langsung diakses. Mencoba kamera default:", err);
@@ -514,10 +521,11 @@ const ARView = ({ product, onBack }: { product: Product | null; onBack: () => vo
           if (videoRef.current) {
             videoRef.current.srcObject = activeStream;
             setCameraActive(true);
+            setCameraError(null);
           }
         } catch (failErr) {
           console.error("Gagal memulai kamera perangkat:", failErr);
-          setCameraError("Akses kamera ditolak atau perangkat tidak mendukung streaming video langsung.");
+          setCameraError("Akses kamera ditolak oleh sistem keamanan peranti Anda saat mencoba memulai video waktu-nyata.");
         }
       }
     }
@@ -541,7 +549,20 @@ const ARView = ({ product, onBack }: { product: Product | null; onBack: () => vo
 
   // Triggers device-specific, spatial tracking ARcore / ARkit Quick Look environments natively if available
   const handleLaunchNativeAR = () => {
-    // If the user is on iOS, we always trigger the native Quick Look anchor element directly for maximum reliability and spatial anchoring.
+    // Attempt to invoke model-viewer's built-in AR state machine first (handles WebXR on Android and Quick Look on iOS)
+    if (modelViewerRef.current) {
+      try {
+        if (typeof modelViewerRef.current.activateAR === 'function') {
+          console.log("Mengaktifkan AR bawaan model-viewer...");
+          modelViewerRef.current.activateAR();
+          return;
+        }
+      } catch (err) {
+        console.warn("Gagal mengaktifkan AR bawaan model-viewer, menggunakan fallback manual:", err);
+      }
+    }
+
+    // If the user is on iOS and the built-in trigger failed, fallback to native Quick Look anchor element for maximum reliability.
     if (isIOS) {
       const usdzUrl = product.usdzUrl || "https://developer.apple.com/augmented-reality/quick-look/models/woodchair/woodchair.usdz";
       const anchor = document.createElement('a');
@@ -555,27 +576,6 @@ const ARView = ({ product, onBack }: { product: Product | null; onBack: () => vo
       document.body.removeChild(anchor);
       return;
     }
-    
-    // If the user is on Android, we use the Direct Scene-Viewer Intent protocol which activates Google ARCore with environmental floor tracking.
-    if (isAndroid) {
-      const glbUrl = product.glbUrl && product.glbUrl.startsWith('http') 
-        ? product.glbUrl 
-        : `${window.location.origin}${product.glbUrl || ''}`;
-      const sceneViewerUrl = `intent://arvr.google.com/scene-viewer/1.0?file=${encodeURIComponent(glbUrl)}&title=${encodeURIComponent(product.name)}&mode=ar_only#Intent;scheme=https;package=com.google.ar.core;action=android.intent.action.VIEW;S.browser_fallback_url=https://developers.google.com/ar;end`;
-      window.location.href = sceneViewerUrl;
-      return;
-    }
-
-    // Default WebXR activation fallback on desktop/other browsers
-    if (modelViewerRef.current) {
-      try {
-        if (typeof modelViewerRef.current.activateAR === 'function') {
-          modelViewerRef.current.activateAR();
-        }
-      } catch (err) {
-        console.warn("Gagal memulai modul Spatial WebXR AR bawaan:", err);
-      }
-    }
   };
 
   return (
@@ -583,7 +583,7 @@ const ARView = ({ product, onBack }: { product: Product | null; onBack: () => vo
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 w-full h-screen z-[200] bg-slate-950 overflow-hidden flex flex-col"
+      className="fixed inset-0 w-full h-screen z-[200] bg-slate-950 overflow-hidden flex flex-col transition-colors duration-700"
     >
       {/* Background Video Stream Layer (Active Camera) */}
       <video
@@ -592,8 +592,16 @@ const ARView = ({ product, onBack }: { product: Product | null; onBack: () => vo
         playsInline
         muted
         className="absolute inset-0 w-full h-full object-cover z-0"
-        style={{ transform: cameraActive && !isIOS && !isAndroid ? 'scaleX(-1)' : 'none' }} // Mirror front-facing camera on desktop only
+        style={{ transform: cameraActive && !isIOS && !isAndroid ? 'scaleX(-1)' : 'none', display: cameraActive ? 'block' : 'none' }} // Mirror front-facing camera on desktop only
       />
+
+      {/* Decorative virtual studio background if camera is inactive */}
+      {!cameraActive && (
+        <div className="absolute inset-0 z-0 bg-gradient-to-b from-slate-900 via-slate-950 to-neutral-950 pointer-events-none">
+          <div className="absolute top-[30%] left-1/2 -translate-x-1/2 w-[350px] h-[350px] bg-teal-500/10 rounded-full blur-[100px]" />
+          <div className="absolute bottom-0 inset-x-0 h-40 bg-radial from-white/5 to-transparent blur-[40px] opacity-20" />
+        </div>
+      )}
 
       {/* Top Header Overlay */}
       <div className="absolute top-0 inset-x-0 z-50 bg-gradient-to-b from-black/85 via-black/40 to-transparent p-5 flex items-center justify-between">
@@ -603,30 +611,59 @@ const ARView = ({ product, onBack }: { product: Product | null; onBack: () => vo
         >
           <ChevronLeft size={24} />
         </button>
-        <span className="text-white text-[11px] font-black tracking-widest uppercase bg-teal-600 px-4 py-2 rounded-full border border-teal-500 shadow-xl flex items-center gap-2">
-          <span className="w-2.5 h-2.5 bg-red-500 rounded-full animate-ping" />
-          Kamera AR Aktif
-        </span>
+        {cameraActive ? (
+          <span className="text-white text-[10px] font-black tracking-widest uppercase bg-teal-600 px-4 py-2 rounded-full border border-teal-500 shadow-xl flex items-center gap-2">
+            <span className="w-2 h-2 bg-red-500 rounded-full animate-ping" />
+            Kamera AR Aktif
+          </span>
+        ) : (
+          <span className="text-white text-[10px] font-black tracking-widest uppercase bg-slate-800 px-4 py-2 rounded-full border border-slate-700 shadow-xl flex items-center gap-2">
+            <span className="w-2 h-2 bg-amber-400 rounded-full animate-pulse" />
+            Mode Studio 3D
+          </span>
+        )}
         <div className="w-10 h-10" />
       </div>
 
-      {/* Camera Inactive / Error Fallbacks */}
+      {/* Camera Connection / Setup Stage */}
       {!cameraActive && !cameraError && (
         <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-950/70 text-white z-10 p-6 text-center">
           <div className="w-10 h-10 rounded-full border-4 border-teal-500 border-t-transparent animate-spin mb-4" />
           <h3 className="font-bold text-sm text-teal-400">Menghubungkan ke Kamera...</h3>
-          <p className="text-xs text-slate-400 mt-1 max-w-xs">Mohon izinkan akses kamera agar dapat melihat model 3D langsung di ruangan Anda.</p>
+          <p className="text-xs text-slate-400 mt-1 max-w-sm leading-relaxed">Mohon izinkan akses kamera agar dapat melihat model 3D langsung di ruangan Anda.</p>
         </div>
       )}
 
-      {cameraError && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-900/90 text-white z-10 p-6 text-center">
-          <div className="w-12 h-12 bg-red-500/20 rounded-full flex items-center justify-center text-red-400 mb-4 border border-red-500/30">
-            ⚠
+      {/* Camera Access Refused - Beautiful & Interactive Dismissible Dialog */}
+      {cameraError && !bypassCameraError && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-950/95 text-white z-[300] p-6 text-center backdrop-blur-md">
+          <div className="w-16 h-16 bg-amber-500/10 rounded-2xl flex items-center justify-center text-amber-400 mb-5 border border-amber-500/20 shadow-lg shadow-amber-500/5 animate-pulse">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
           </div>
-          <h3 className="font-bold text-base text-red-400">Gagal Mengaktifkan Kamera</h3>
-          <p className="text-xs text-slate-300 mt-2 max-w-xs leading-relaxed">{cameraError}</p>
-          <p className="text-[11px] text-slate-500 mt-1 bg-white/5 px-3 py-1.5 rounded-full">Tetap menampilkan visualisator 3D interaktif</p>
+          <h3 className="font-bold text-lg text-slate-100 leading-tight">Izin Kamera Ditangguhkan</h3>
+          <p className="text-xs text-slate-300 mt-2 max-w-xs leading-relaxed">
+            {cameraError}
+          </p>
+          <p className="text-[11px] text-slate-400 mt-3 max-w-xs leading-relaxed bg-white/5 p-3 rounded-2xl border border-white/5">
+            Namun jangan khawatir! Anda tetap bisa memutar-mutar dan menaruh model seni 3D ini menggunakan <strong>Mode Studio 3D Interaktif</strong>.
+          </p>
+          
+          <div className="flex flex-col gap-3 mt-6 w-full max-w-xs">
+            <button
+              onClick={() => setBypassCameraError(true)}
+              className="w-full bg-gradient-to-r from-teal-500 to-emerald-600 hover:brightness-110 active:scale-98 text-white py-3 px-4 rounded-xl text-xs font-bold leading-none tracking-wide transition-all shadow-lg shadow-teal-500/20 cursor-pointer border-none"
+            >
+              Masuk Mode Studio 3D (Melihat Model)
+            </button>
+            <button
+              onClick={onBack}
+              className="w-full bg-slate-800 hover:bg-slate-700 text-slate-300 py-3 px-4 rounded-xl text-xs font-bold leading-none transition-all cursor-pointer border border-slate-700/30"
+            >
+              Kembali ke Detail Produk
+            </button>
+          </div>
         </div>
       )}
 
@@ -638,7 +675,7 @@ const ARView = ({ product, onBack }: { product: Product | null; onBack: () => vo
           ios-src={product.usdzUrl}
           alt={product.name}
           ar
-          ar-modes="webxr scene-viewer quick-look"
+          ar-modes="webxr quick-look"
           camera-controls
           auto-rotate={false}
           interaction-prompt="none"
