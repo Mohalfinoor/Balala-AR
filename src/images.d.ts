@@ -17,3 +17,13 @@ declare module "*.svg" {
   const value: string;
   export default value;
 }
+
+declare module "*.glb" {
+  const value: string;
+  export default value;
+}
+
+declare module "*.usdz" {
+  const value: string;
+  export default value;
+}
