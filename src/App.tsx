@@ -501,6 +501,7 @@ const ARView = ({ product, onBack }: { product: Product | null; onBack: () => vo
       if (!navigator || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
         console.warn("navigator.mediaDevices atau getUserMedia tidak terdefinisi pada browser ini.");
         setCameraError("Akses kamera tidak diizinkan oleh sistem keamanan browser atau sedang berada dalam integrasi preview (WebRTC dinonaktifkan di iframe).");
+        setBypassCameraError(true);
         return;
       }
       try {
@@ -524,8 +525,10 @@ const ARView = ({ product, onBack }: { product: Product | null; onBack: () => vo
             setCameraError(null);
           }
         } catch (failErr) {
-          console.error("Gagal memulai kamera perangkat:", failErr);
+          console.warn("[MediaStream] Aliran kamera dilewati karena izin ditolak atau tidak didukung:", failErr);
           setCameraError("Akses kamera ditolak oleh sistem keamanan peranti Anda saat mencoba memulai video waktu-nyata.");
+          // Automatically transition bypass to True so that they can see and manipulate the 3D model instantly in Studio Mode!
+          setBypassCameraError(true);
         }
       }
     }
@@ -624,6 +627,15 @@ const ARView = ({ product, onBack }: { product: Product | null; onBack: () => vo
         )}
         <div className="w-10 h-10" />
       </div>
+
+      {/* Floating alert if camera error is present but bypassed */}
+      {cameraError && (
+        <div className="absolute top-18 inset-x-4 z-40 mx-auto w-fit max-w-sm flex items-center gap-2 bg-amber-500/10 backdrop-blur-md border border-amber-500/20 px-4 py-2.5 rounded-2xl shadow-lg shadow-amber-500/5">
+          <span className="text-[10px] class font-bold text-amber-200 text-center leading-relaxed">
+            ⚠️ Kamera dinonaktifkan (Permission Denied). Menampilkan model interaktif pada <strong>Mode Studio 3D</strong> dengan latar virtual.
+          </span>
+        </div>
+      )}
 
       {/* Camera Connection / Setup Stage */}
       {!cameraActive && !cameraError && (
