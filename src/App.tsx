@@ -221,18 +221,6 @@ const PRODUCTS: Product[] = [
     philosophy: "Perpaduan seni kaligrafi dengan motif sakral tradisional Bugis yang melambangkan berkah spiritualitas, ketenangan batin, serta perlindungan Ilahi.",
     glbUrl: "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/ModernUpholsteredChair/glTF-Binary/ModernUpholsteredChair.glb",
     usdzUrl: "https://developer.apple.com/augmented-reality/quick-look/models/woodchair/woodchair.usdz"
-  },
-  {
-    id: '7',
-    name: "Singgasana Bone 3D (AR Test Model)",
-    price: "Rp 15.000.000",
-    image: torajaChairImage,
-    culture: "Bone",
-    rating: 5.0,
-    description: "Model representasi Kursi Singgasana kerajaan Bone berlapis ornamen jati megah. Dibuat khusus sebagai model sampel uji coba fungsionalitas visualisasi AR 3D interaktif yang presisi secara spasial.",
-    philosophy: "Mewakili nilai keagungan, kejayaan, keadilan, dan keteguhan kepemimpinan spiritual spiritualitas Bugis-Makassar.",
-    glbUrl: "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/ModernUpholsteredChair/glTF-Binary/ModernUpholsteredChair.glb",
-    usdzUrl: "https://developer.apple.com/augmented-reality/quick-look/models/woodchair/woodchair.usdz"
   }
 ];
 
@@ -293,7 +281,6 @@ const ProductDetailView = ({
   onAddToCart: () => void;
   key?: string;
 }) => {
-  const [activeMediaTab, setActiveMediaTab] = useState<'3d' | '2d'>(product.glbUrl ? '3d' : '2d');
   const ModelViewer = 'model-viewer' as any;
 
   return (
@@ -305,48 +292,36 @@ const ProductDetailView = ({
     >
       <div className="w-full max-w-5xl bg-white min-h-screen md:min-h-0 md:rounded-3xl shadow-2xl relative overflow-hidden flex flex-col md:flex-row">
         
-        {/* Left Pane: Interactive 3D Showcase or Image Showcase */}
+        {/* Left Pane: Interactive 3D Showcase */}
         <div className="relative h-[45vh] md:h-[600px] md:w-1/2 w-full bg-[#f8fafc] flex-shrink-0 flex items-center justify-center overflow-hidden">
-          {activeMediaTab === '3d' && product.glbUrl ? (
-            <div className="w-full h-full relative" id="threeDContainer">
-              <ModelViewer
-                src={getAbsoluteUrl(product.glbUrl)}
-                ios-src={getAbsoluteUrl(product.usdzUrl)}
-                alt={product.name}
-                ar
-                ar-modes="webxr scene-viewer quick-look"
-                camera-controls
-                auto-rotate
-                auto-rotate-delay="1500"
-                interaction-prompt="auto"
-                shadow-intensity="1.5"
-                shadow-softness="1"
-                style={{ width: '100%', height: '100%', backgroundColor: '#f8fafc' }}
-                className="w-full h-full outline-hidden"
+          <div className="w-full h-full relative" id="threeDContainer">
+            <ModelViewer
+              src={getAbsoluteUrl(product.glbUrl || '')}
+              ios-src={getAbsoluteUrl(product.usdzUrl || '')}
+              alt={product.name}
+              ar
+              ar-modes="webxr scene-viewer quick-look"
+              camera-controls
+              auto-rotate
+              auto-rotate-delay="1500"
+              interaction-prompt="auto"
+              shadow-intensity="1.5"
+              shadow-softness="1"
+              style={{ width: '100%', height: '100%', backgroundColor: '#f8fafc' }}
+              className="w-full h-full outline-hidden"
+            >
+              <button 
+                slot="ar-button" 
+                className="absolute bottom-4 right-4 bg-gradient-to-r from-amber-500 to-orange-600 hover:brightness-110 active:scale-95 text-white font-bold text-xs py-3 px-5 rounded-full shadow-lg flex items-center gap-2 cursor-pointer border-none z-50 transition-all"
               >
-                <button 
-                  slot="ar-button" 
-                  className="absolute bottom-4 right-4 bg-gradient-to-r from-amber-500 to-orange-600 hover:brightness-110 active:scale-95 text-white font-bold text-xs py-3 px-5 rounded-full shadow-lg flex items-center gap-2 cursor-pointer border-none z-50 transition-all"
-                >
-                  📱 Lihat di Ruangan Anda (AR)
-                </button>
-                <div slot="poster" className="absolute inset-0 flex flex-col items-center justify-center bg-slate-50/80 backdrop-blur-xs gap-3">
-                  <div className="w-8 h-8 rounded-full border-2 border-teal-600 border-t-transparent animate-spin" />
-                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest animate-pulse">Menyiapkan Model Seni 3D...</span>
-                </div>
-              </ModelViewer>
-            </div>
-          ) : (
-            <div className="w-full h-full relative">
-              <img 
-                src={product.image} 
-                alt={product.name} 
-                className="w-full h-full object-cover"
-                referrerPolicy="no-referrer"
-              />
-              <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-black/25" />
-            </div>
-          )}
+                📱 Lihat di Ruangan Anda (AR)
+              </button>
+              <div slot="poster" className="absolute inset-0 flex flex-col items-center justify-center bg-slate-50/80 backdrop-blur-xs gap-3">
+                <div className="w-8 h-8 rounded-full border-2 border-teal-600 border-t-transparent animate-spin" />
+                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest animate-pulse">Menyiapkan Model Seni 3D...</span>
+              </div>
+            </ModelViewer>
+          </div>
           
           {/* Back/Favorite button Overlay */}
           <div className="absolute top-4 left-4 right-4 flex justify-between items-center z-10">
@@ -363,32 +338,6 @@ const ProductDetailView = ({
               <Heart size={20} className={isFavorite ? "fill-rose-500 text-rose-500 animate-pulse" : "hover:fill-rose-500 transition-colors"} />
             </button>
           </div>
-
-          {/* Interactive 3D / Photo Mode Toggles */}
-          {product.glbUrl && (
-            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20 flex bg-black/55 backdrop-blur-md p-1 rounded-full border border-white/10 shadow-lg">
-              <button
-                onClick={() => setActiveMediaTab('3d')}
-                className={`px-4 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider transition-all duration-300 ${
-                  activeMediaTab === '3d'
-                    ? 'bg-gradient-to-r from-teal-500 to-amber-500 text-slate-950 font-black shadow-md'
-                    : 'text-white/70 hover:text-white'
-                }`}
-              >
-                🎥 Interaktif 3D
-              </button>
-              <button
-                onClick={() => setActiveMediaTab('2d')}
-                className={`px-4 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider transition-all duration-300 ${
-                  activeMediaTab === '2d'
-                    ? 'bg-gradient-to-r from-teal-500 to-amber-500 text-slate-950 font-black shadow-md'
-                    : 'text-white/70 hover:text-white'
-                }`}
-              >
-                🖼️ Foto 2D
-              </button>
-            </div>
-          )}
         </div>
 
       {/* Right Pane: Detailed Content */}
@@ -570,14 +519,6 @@ const ARView = ({ product, onBack }: { product: Product | null; onBack: () => vo
         <div className="w-10 h-10" />
       </div>
 
-      {/* Help Alert Banner explaining how Sandbox WebViews or iFrames block AR and how to bypass */}
-      <div className="absolute top-18 inset-x-4 z-40 mx-auto w-fit max-w-md bg-gradient-to-r from-amber-500/10 to-amber-600/10 backdrop-blur-md border border-amber-500/20 p-4 rounded-2xl shadow-xl shadow-amber-500/5 text-center">
-        <p className="text-[10.5px] font-medium text-amber-100 leading-relaxed">
-          💡 <strong>Tips Sukses Kamera AR:</strong> Karena aplikasi berjalan di link pratinjau aman (private staging), pihak Google Scene Viewer luar tidak bisa men-download 3D model secara langsung (menyebabkan camera tiba-tiba close). 
-          <br /><span className="text-teal-300 font-bold">SOLUSI:</span> Pilih mode <strong>WebXR</strong> (di dalam browser) untuk memproyeksikan AR langsung tanpa keluar dari Chrome, atau klik tombol <strong>"Buka di Tab Baru" (Open in New Tab)</strong> di atas agar model dapat didownload dengan lancar!
-        </p>
-      </div>
-
       {/* Main Interactive 3D Canvas */}
       <div className="flex-1 w-full h-full relative flex items-center justify-center z-10 pt-16">
         <ModelViewer
@@ -607,7 +548,7 @@ const ARView = ({ product, onBack }: { product: Product | null; onBack: () => vo
           </button>
 
           {modelLoaded && (
-            <div className="absolute bottom-28 inset-x-0 mx-auto w-fit text-center pointer-events-none animate-bounce delay-1000 z-40">
+            <div className="absolute bottom-10 inset-x-0 mx-auto w-fit text-center pointer-events-none animate-bounce delay-1000 z-40">
               <span className="text-[10px] font-bold text-white bg-black/75 px-4 py-2.5 rounded-full border border-white/10 shadow-lg">
                 👆 Seret untuk Memutar • 🤏 Cubit untuk Memperbesar
               </span>
@@ -623,35 +564,6 @@ const ARView = ({ product, onBack }: { product: Product | null; onBack: () => vo
             </div>
           )}
         </ModelViewer>
-      </div>
-
-      {/* Embedded UI Detail Controls Overlay */}
-      <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-slate-950 via-slate-950/85 to-transparent p-6 pt-24 flex flex-col items-center z-20">
-        <div className="w-full max-w-sm bg-black/70 backdrop-blur-xl border border-white/15 p-5 rounded-3xl shadow-2xl flex flex-col gap-4 text-center">
-          
-          <div>
-            <span className="text-[9px] font-bold text-teal-400 uppercase tracking-widest bg-teal-950/40 border border-teal-500/10 px-2.5 py-0.5 rounded-full">
-              Koleksi {product.culture}
-            </span>
-            <h4 className="text-sm font-bold text-white mt-1.5">{product.name}</h4>
-            <p className="text-[11px] text-slate-300 mt-1 line-clamp-2 leading-relaxed text-center">{product.philosophy}</p>
-          </div>
-
-          <div className="flex flex-col gap-2.5">
-            <button
-              onClick={handleLaunchNativeAR}
-              className="w-full bg-gradient-to-r from-teal-500 via-teal-600 to-amber-600 hover:brightness-110 active:scale-98 transition-all text-white py-3.5 rounded-2xl text-[10.5px] font-black tracking-wider uppercase flex items-center justify-center gap-2 shadow-lg shadow-teal-500/20 cursor-pointer border-none"
-            >
-              <Sparkles size={14} className="text-amber-200 animate-pulse" />
-              <span>Mulai AR Spasial (Google / Apple Camera)</span>
-            </button>
-            
-            <p className="text-[10px] text-slate-400 max-w-xs mx-auto leading-relaxed">
-              Membuka Google Scene Viewer atau iOS AR Quick Look bawaan HP Anda untuk memposisikan objek 3D di lantai nyata secara presisi.
-            </p>
-          </div>
-
-        </div>
       </div>
     </motion.div>
   );
@@ -1122,14 +1034,6 @@ function ProductCard({
               </span>
             </div>
           )}
-          {product.glbUrl && (
-            <div className="absolute top-2 left-2 animate-fade-in z-10">
-              <span className="px-2 py-1 rounded-lg text-[8px] font-black tracking-widest uppercase shadow-md bg-gradient-to-r from-teal-500 via-teal-600 to-amber-500 text-white flex items-center gap-1.5 border border-white/25">
-                <Sparkles size={8} className="animate-spin text-amber-200" style={{ animationDuration: '3s' }} />
-                AR 3D Model
-              </span>
-            </div>
-          )}
           <div className="absolute top-2 right-2 flex gap-1 animate-fade-in">
             <button 
               onClick={(e) => { e.stopPropagation(); onToggleFavorite(); }}
@@ -1246,7 +1150,10 @@ export default function App() {
     try {
       const saved = localStorage.getItem('ballaar_products');
       if (saved) {
-        const parsed: Product[] = JSON.parse(saved);
+        let parsed: Product[] = JSON.parse(saved);
+        // Exclude the ID '7' duplicate AR Quick-look test item
+        parsed = parsed.filter(p => p.id !== '7');
+        
         // Force update default products' details (including premium 3D models) to latest configuration
         const updatedParsed = parsed.map((p) => {
           const defaultProd = PRODUCTS.find((dp) => dp.id === p.id);
@@ -1264,7 +1171,7 @@ export default function App() {
           return p;
         });
 
-        // Auto-merge any newly added default products (e.g., ID '7' Singgasana Bone 3D) that aren't in cached stored items
+        // Auto-merge any newly added default products that aren't in cached stored items
         const missingDefaults = PRODUCTS.filter(
           (dp) => !updatedParsed.some((up) => up.id === dp.id)
         );
@@ -1522,6 +1429,37 @@ export default function App() {
     if (e) {
       e.stopPropagation();
     }
+
+    if (typeof window !== 'undefined') {
+      const ua = navigator.userAgent;
+      const isIOSDevice = /iPad|iPhone|iPod/.test(ua) && !(window as any).MSStream;
+      const isAndroidDevice = /Android/.test(ua);
+      
+      const glbUrl = getAbsoluteUrl(product.glbUrl);
+      const usdzUrl = getAbsoluteUrl(product.usdzUrl);
+
+      if (isIOSDevice && usdzUrl) {
+        console.log("Directly launching iOS AR Quick Look...");
+        const anchor = document.createElement('a');
+        anchor.setAttribute('rel', 'ar');
+        anchor.setAttribute('href', usdzUrl);
+        const img = document.createElement('img');
+        img.src = product.image;
+        anchor.appendChild(img);
+        document.body.appendChild(anchor);
+        anchor.click();
+        document.body.removeChild(anchor);
+        return;
+      } else if (isAndroidDevice && glbUrl) {
+        console.log("Directly launching Android Scene Viewer...");
+        const titleEnc = encodeURIComponent(product.name);
+        const fallbackUrl = window.location.href;
+        const sceneViewerUrl = `intent://arvr.google.com/scene-viewer/1.0?file=${encodeURIComponent(glbUrl)}&title=${titleEnc}&mode=ar_only#Intent;scheme=https;package=com.google.ar.core;action=android.intent.action.VIEW;S.browser_fallback_url=${encodeURIComponent(fallbackUrl)};end;`;
+        window.location.href = sceneViewerUrl;
+        return;
+      }
+    }
+
     setSelectedProduct(product);
     setPreviousView(view);
     setView('ar');
