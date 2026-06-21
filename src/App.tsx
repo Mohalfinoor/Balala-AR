@@ -41,6 +41,7 @@ import makassarCabinetImage from './assets/images/makassar_cabinet_truly_clean_1
 import mandarSofaImage from './assets/images/mandar_sofa_1781263192650.jpg';
 import bugisBuffetImage from './assets/images/bugis_buffet_1781263208294.jpg';
 import pareppoGlb from './assets/images/Kursi-Tamu-Pareppo-v1.glb';
+import pareppoUsdz from './assets/images/Kursi-Tamu-Pareppo-v1.usdz';
 
 // --- Custom Modular Drawers & Modals ---
 import Logo from './components/Logo';
@@ -159,7 +160,7 @@ const PRODUCTS: Product[] = [
     description: "Kursi tamu premium yang dibuat dari kayu jati pilihan, didesain dengan ukiran khas Toraja yang dipahat manual oleh pengrajin lokal berpengalaman.",
     philosophy: "Motif Pa'reppo pada kursi ini melambangkan keteguhan hati, kemantapan berfikir, dan kemapanan dalam jenjang kehidupan masyarakat adat Toraja.",
     glbUrl: pareppoGlb,
-    usdzUrl: "https://developer.apple.com/augmented-reality/quick-look/models/woodchair/woodchair.usdz"
+    usdzUrl: pareppoUsdz
   },
   {
     id: '2',
