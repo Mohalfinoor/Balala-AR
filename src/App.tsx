@@ -46,6 +46,8 @@ import lemariBugisGlb from './assets/images/Lemari-Ukir-Sulur-Bugis-v1.glb';
 import lemariBugisUsdz from './assets/images/Lemari-Ukir-Sulur-Bugis-v1.usdz';
 import mejaPassuraGlb from './assets/images/Meja-Makan-Passura-v1.glb';
 import mejaPassuraUsdz from './assets/images/Meja-Makan-Passura-v1.usdz';
+import phinisiGlb from './assets/images/Lemari-Ukir-Phinisi-v1.glb';
+import phinisiUsdz from './assets/images/Lemari-Ukir-Phinisi-v1.usdz';
 
 // --- Custom Modular Drawers & Modals ---
 import Logo from './components/Logo';
@@ -199,8 +201,8 @@ const PRODUCTS: Product[] = [
     rating: 4.7,
     description: "Lemari pajangan luxury dengan ukiran relief epik penjelajahan kapal legendaris Phinisi Bugis-Makassar yang mengarungi samudera luas.",
     philosophy: "Ukiran kapal Phinisi yang legendaris melambangkan keteguhan berjuang, tekad pantang menyerah, keberanian, dan jiwa pelaut sejati masyarakat Makassar.",
-    glbUrl: "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/Lantern/glTF-Binary/Lantern.glb",
-    usdzUrl: "https://developer.apple.com/augmented-reality/quick-look/models/stratocaster/fender_stratocaster.usdz"
+    glbUrl: phinisiGlb,
+    usdzUrl: phinisiUsdz
   },
   {
     id: '5',
