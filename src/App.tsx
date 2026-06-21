@@ -261,6 +261,20 @@ const ARLinkOrButton = ({
   );
 };
 
+const getAbsoluteUrl = (url?: string) => {
+  if (!url) return '';
+  if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:')) {
+    return url;
+  }
+  // Convert relative assets (e.g., '/src/assets/...', '/assets/...') to fully qualified URLs
+  let cleanUrl = url;
+  if (cleanUrl.startsWith('./')) cleanUrl = cleanUrl.substring(2);
+  if (cleanUrl.startsWith('/')) cleanUrl = cleanUrl.substring(1);
+  
+  const origin = typeof window !== 'undefined' ? window.location.origin : '';
+  return `${origin}/${cleanUrl}`;
+};
+
 // --- ProductDetailView ---
 const ProductDetailView = ({ 
   product, 
@@ -295,11 +309,11 @@ const ProductDetailView = ({
           {activeMediaTab === '3d' && product.glbUrl ? (
             <div className="w-full h-full relative" id="threeDContainer">
               <ModelViewer
-                src={product.glbUrl}
-                ios-src={product.usdzUrl}
+                src={getAbsoluteUrl(product.glbUrl)}
+                ios-src={getAbsoluteUrl(product.usdzUrl)}
                 alt={product.name}
                 ar
-                ar-modes="webxr quick-look"
+                ar-modes="webxr scene-viewer quick-look"
                 camera-controls
                 auto-rotate
                 auto-rotate-delay="1500"
@@ -309,6 +323,12 @@ const ProductDetailView = ({
                 style={{ width: '100%', height: '100%', backgroundColor: '#f8fafc' }}
                 className="w-full h-full outline-hidden"
               >
+                <button 
+                  slot="ar-button" 
+                  className="absolute bottom-4 right-4 bg-gradient-to-r from-amber-500 to-orange-600 hover:brightness-110 active:scale-95 text-white font-bold text-xs py-3 px-5 rounded-full shadow-lg flex items-center gap-2 cursor-pointer border-none z-50 transition-all"
+                >
+                  📱 Lihat di Ruangan Anda (AR)
+                </button>
                 <div slot="poster" className="absolute inset-0 flex flex-col items-center justify-center bg-slate-50/80 backdrop-blur-xs gap-3">
                   <div className="w-8 h-8 rounded-full border-2 border-teal-600 border-t-transparent animate-spin" />
                   <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest animate-pulse">Menyiapkan Model Seni 3D...</span>
@@ -466,23 +486,19 @@ const ProductDetailView = ({
       </ARLinkOrButton>
     </div>
   </motion.div>
-);
+ );
 };
 
 /// --- ARView ---
 const ARView = ({ product, onBack }: { product: Product | null; onBack: () => void; key?: string }) => {
   const ModelViewer = 'model-viewer' as any;
   const modelViewerRef = useRef<any>(null);
-  const videoRef = useRef<HTMLVideoElement | null>(null);
   
   const [modelLoaded, setModelLoaded] = useState(false);
-  const [cameraActive, setCameraActive] = useState(false);
-  const [cameraError, setCameraError] = useState<string | null>(null);
-  const [bypassCameraError, setBypassCameraError] = useState(false);
   const [isIOS, setIsIOS] = useState(false);
   const [isAndroid, setIsAndroid] = useState(false);
 
-  // Identify platform for helpful instructions and dedicated native launch configurations
+  // Identify platform for dedicated native fallback triggers
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const ua = navigator.userAgent;
@@ -493,81 +509,25 @@ const ARView = ({ product, onBack }: { product: Product | null; onBack: () => vo
     }
   }, []);
 
-  // Request the camera stream and bind it to our background video element
-  useEffect(() => {
-    let activeStream: MediaStream | null = null;
-    
-    async function startCamera() {
-      if (!navigator || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        console.warn("navigator.mediaDevices atau getUserMedia tidak terdefinisi pada browser ini.");
-        setCameraError("Akses kamera tidak diizinkan oleh sistem keamanan browser atau sedang berada dalam integrasi preview (WebRTC dinonaktifkan di iframe).");
-        setBypassCameraError(true);
-        return;
-      }
-      try {
-        // Attempt to launch the rear environment camera first for the best AR experience
-        activeStream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: 'environment' }
-        });
-        if (videoRef.current) {
-          videoRef.current.srcObject = activeStream;
-          setCameraActive(true);
-          setCameraError(null);
-        }
-      } catch (err) {
-        console.warn("Kamera belakang 'environment' tidak dapat langsung diakses. Mencoba kamera default:", err);
-        try {
-          // Fallback to any user/default camera
-          activeStream = await navigator.mediaDevices.getUserMedia({ video: true });
-          if (videoRef.current) {
-            videoRef.current.srcObject = activeStream;
-            setCameraActive(true);
-            setCameraError(null);
-          }
-        } catch (failErr) {
-          console.warn("[MediaStream] Aliran kamera dilewati karena izin ditolak atau tidak didukung:", failErr);
-          setCameraError("Akses kamera ditolak oleh sistem keamanan peranti Anda saat mencoba memulai video waktu-nyata.");
-          // Automatically transition bypass to True so that they can see and manipulate the 3D model instantly in Studio Mode!
-          setBypassCameraError(true);
-        }
-      }
-    }
-
-    startCamera();
-
-    return () => {
-      if (activeStream) {
-        activeStream.getTracks().forEach(track => {
-          try {
-            track.stop();
-          } catch (e) {
-            console.error("Gagal mematikan kamera:", e);
-          }
-        });
-      }
-    };
-  }, []);
-
   if (!product) return null;
 
-  // Triggers device-specific, spatial tracking ARcore / ARkit Quick Look environments natively if available
+  // Manual/Programmatic trigger fallback if native button is not visible or user clicks primary card action
   const handleLaunchNativeAR = () => {
-    // Attempt to invoke model-viewer's built-in AR state machine first (handles WebXR on Android and Quick Look on iOS)
     if (modelViewerRef.current) {
       try {
         if (typeof modelViewerRef.current.activateAR === 'function') {
-          console.log("Mengaktifkan AR bawaan model-viewer...");
+          console.log("Mengaktifkan AR bawaan model-viewer secara programmatis...");
           modelViewerRef.current.activateAR();
           return;
         }
       } catch (err) {
-        console.warn("Gagal mengaktifkan AR bawaan model-viewer, menggunakan fallback manual:", err);
+        console.warn("Gagal mengaktifkan AR bawaan model-viewer secara programmatis:", err);
       }
     }
 
-    // If the user is on iOS and the built-in trigger failed, fallback to native Quick Look anchor element for maximum reliability.
+    // Direct Quick Look trigger for iOS if ModelViewer helper fails
     if (isIOS) {
-      const usdzUrl = product.usdzUrl || "https://developer.apple.com/augmented-reality/quick-look/models/woodchair/woodchair.usdz";
+      const usdzUrl = getAbsoluteUrl(product.usdzUrl) || "https://developer.apple.com/augmented-reality/quick-look/models/woodchair/woodchair.usdz";
       const anchor = document.createElement('a');
       anchor.setAttribute('rel', 'ar');
       anchor.setAttribute('href', usdzUrl);
@@ -577,7 +537,6 @@ const ARView = ({ product, onBack }: { product: Product | null; onBack: () => vo
       document.body.appendChild(anchor);
       anchor.click();
       document.body.removeChild(anchor);
-      return;
     }
   };
 
@@ -586,25 +545,14 @@ const ARView = ({ product, onBack }: { product: Product | null; onBack: () => vo
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 w-full h-screen z-[200] bg-slate-950 overflow-hidden flex flex-col transition-colors duration-700"
+      className="fixed inset-0 w-full h-screen z-[200] bg-slate-950 overflow-hidden flex flex-col"
     >
-      {/* Background Video Stream Layer (Active Camera) */}
-      <video
-        ref={videoRef}
-        autoPlay
-        playsInline
-        muted
-        className="absolute inset-0 w-full h-full object-cover z-0"
-        style={{ transform: cameraActive && !isIOS && !isAndroid ? 'scaleX(-1)' : 'none', display: cameraActive ? 'block' : 'none' }} // Mirror front-facing camera on desktop only
-      />
-
-      {/* Decorative virtual studio background if camera is inactive */}
-      {!cameraActive && (
-        <div className="absolute inset-0 z-0 bg-gradient-to-b from-slate-900 via-slate-950 to-neutral-950 pointer-events-none">
-          <div className="absolute top-[30%] left-1/2 -translate-x-1/2 w-[350px] h-[350px] bg-teal-500/10 rounded-full blur-[100px]" />
-          <div className="absolute bottom-0 inset-x-0 h-40 bg-radial from-white/5 to-transparent blur-[40px] opacity-20" />
-        </div>
-      )}
+      {/* Decorative premium virtual studio stage background */}
+      <div className="absolute inset-0 z-0 bg-gradient-to-b from-slate-900 via-slate-950 to-neutral-950 pointer-events-none">
+        <div className="absolute top-[25%] left-1/2 -translate-x-1/2 w-[350px] h-[350px] bg-teal-500/10 rounded-full blur-[100px]" />
+        <div className="absolute bottom-10 left-[20%] w-[250px] h-[250px] bg-amber-500/5 rounded-full blur-[90px]" />
+        <div className="absolute bottom-0 inset-x-0 h-40 bg-radial from-white/5 to-transparent blur-[40px] opacity-20" />
+      </div>
 
       {/* Top Header Overlay */}
       <div className="absolute top-0 inset-x-0 z-50 bg-gradient-to-b from-black/85 via-black/40 to-transparent p-5 flex items-center justify-between">
@@ -614,80 +562,30 @@ const ARView = ({ product, onBack }: { product: Product | null; onBack: () => vo
         >
           <ChevronLeft size={24} />
         </button>
-        {cameraActive ? (
-          <span className="text-white text-[10px] font-black tracking-widest uppercase bg-teal-600 px-4 py-2 rounded-full border border-teal-500 shadow-xl flex items-center gap-2">
-            <span className="w-2 h-2 bg-red-500 rounded-full animate-ping" />
-            Kamera AR Aktif
-          </span>
-        ) : (
-          <span className="text-white text-[10px] font-black tracking-widest uppercase bg-slate-800 px-4 py-2 rounded-full border border-slate-700 shadow-xl flex items-center gap-2">
-            <span className="w-2 h-2 bg-amber-400 rounded-full animate-pulse" />
-            Mode Studio 3D
-          </span>
-        )}
+        <span className="text-white text-[10px] font-black tracking-widest uppercase bg-slate-800/80 backdrop-blur-md px-4 py-2.5 rounded-full border border-slate-700/80 shadow-xl flex items-center gap-2">
+          <span className="w-2 h-2 bg-amber-400 rounded-full animate-pulse" />
+          Mode Studio 3D &amp; AR
+        </span>
         <div className="w-10 h-10" />
       </div>
 
-      {/* Floating alert if camera error is present but bypassed */}
-      {cameraError && (
-        <div className="absolute top-18 inset-x-4 z-40 mx-auto w-fit max-w-sm flex items-center gap-2 bg-amber-500/10 backdrop-blur-md border border-amber-500/20 px-4 py-2.5 rounded-2xl shadow-lg shadow-amber-500/5">
-          <span className="text-[10px] class font-bold text-amber-200 text-center leading-relaxed">
-            ⚠️ Kamera dinonaktifkan (Permission Denied). Menampilkan model interaktif pada <strong>Mode Studio 3D</strong> dengan latar virtual.
-          </span>
-        </div>
-      )}
+      {/* Help Alert Banner explaining how Sandbox WebViews or iFrames block AR and how to bypass */}
+      <div className="absolute top-18 inset-x-4 z-40 mx-auto w-fit max-w-md bg-gradient-to-r from-amber-500/10 to-amber-600/10 backdrop-blur-md border border-amber-500/20 p-4 rounded-2xl shadow-xl shadow-amber-500/5 text-center">
+        <p className="text-[10.5px] font-medium text-amber-100 leading-relaxed">
+          💡 <strong>Tips Sukses Kamera AR:</strong> Karena aplikasi berjalan di link pratinjau aman (private staging), pihak Google Scene Viewer luar tidak bisa men-download 3D model secara langsung (menyebabkan camera tiba-tiba close). 
+          <br /><span className="text-teal-300 font-bold">SOLUSI:</span> Pilih mode <strong>WebXR</strong> (di dalam browser) untuk memproyeksikan AR langsung tanpa keluar dari Chrome, atau klik tombol <strong>"Buka di Tab Baru" (Open in New Tab)</strong> di atas agar model dapat didownload dengan lancar!
+        </p>
+      </div>
 
-      {/* Camera Connection / Setup Stage */}
-      {!cameraActive && !cameraError && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-950/70 text-white z-10 p-6 text-center">
-          <div className="w-10 h-10 rounded-full border-4 border-teal-500 border-t-transparent animate-spin mb-4" />
-          <h3 className="font-bold text-sm text-teal-400">Menghubungkan ke Kamera...</h3>
-          <p className="text-xs text-slate-400 mt-1 max-w-sm leading-relaxed">Mohon izinkan akses kamera agar dapat melihat model 3D langsung di ruangan Anda.</p>
-        </div>
-      )}
-
-      {/* Camera Access Refused - Beautiful & Interactive Dismissible Dialog */}
-      {cameraError && !bypassCameraError && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-950/95 text-white z-[300] p-6 text-center backdrop-blur-md">
-          <div className="w-16 h-16 bg-amber-500/10 rounded-2xl flex items-center justify-center text-amber-400 mb-5 border border-amber-500/20 shadow-lg shadow-amber-500/5 animate-pulse">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-            </svg>
-          </div>
-          <h3 className="font-bold text-lg text-slate-100 leading-tight">Izin Kamera Ditangguhkan</h3>
-          <p className="text-xs text-slate-300 mt-2 max-w-xs leading-relaxed">
-            {cameraError}
-          </p>
-          <p className="text-[11px] text-slate-400 mt-3 max-w-xs leading-relaxed bg-white/5 p-3 rounded-2xl border border-white/5">
-            Namun jangan khawatir! Anda tetap bisa memutar-mutar dan menaruh model seni 3D ini menggunakan <strong>Mode Studio 3D Interaktif</strong>.
-          </p>
-          
-          <div className="flex flex-col gap-3 mt-6 w-full max-w-xs">
-            <button
-              onClick={() => setBypassCameraError(true)}
-              className="w-full bg-gradient-to-r from-teal-500 to-emerald-600 hover:brightness-110 active:scale-98 text-white py-3 px-4 rounded-xl text-xs font-bold leading-none tracking-wide transition-all shadow-lg shadow-teal-500/20 cursor-pointer border-none"
-            >
-              Masuk Mode Studio 3D (Melihat Model)
-            </button>
-            <button
-              onClick={onBack}
-              className="w-full bg-slate-800 hover:bg-slate-700 text-slate-300 py-3 px-4 rounded-xl text-xs font-bold leading-none transition-all cursor-pointer border border-slate-700/30"
-            >
-              Kembali ke Detail Produk
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Main Interactive 3D Canvas rendering directly overlayed on top of active camera stream */}
-      <div className="flex-1 w-full h-full relative flex items-center justify-center z-10">
+      {/* Main Interactive 3D Canvas */}
+      <div className="flex-1 w-full h-full relative flex items-center justify-center z-10 pt-16">
         <ModelViewer
           ref={modelViewerRef}
-          src={product.glbUrl}
-          ios-src={product.usdzUrl}
+          src={getAbsoluteUrl(product.glbUrl)}
+          ios-src={getAbsoluteUrl(product.usdzUrl)}
           alt={product.name}
           ar
-          ar-modes="webxr quick-look"
+          ar-modes="webxr scene-viewer quick-look"
           camera-controls
           auto-rotate={false}
           interaction-prompt="none"
@@ -699,16 +597,17 @@ const ARView = ({ product, onBack }: { product: Product | null; onBack: () => vo
           className="w-full h-full outline-hidden"
           onLoad={() => setModelLoaded(true)}
         >
-          {/* Custom style for the default slot-based AR button of model-viewer to hide it in favor of our custom native launcher button */}
+          {/* Custom AR Button Slot styled premiumly based on user's exact specification */}
           <button 
             slot="ar-button" 
-            id="ar-button-slot"
-            style={{ display: 'none' }}
-          />
+            className="absolute bottom-6 right-6 bg-gradient-to-r from-amber-500 via-amber-600 to-orange-600 active:scale-95 text-white font-bold text-xs py-3.5 px-6 rounded-full shadow-2xl flex items-center gap-2 cursor-pointer border-none z-50 transition-all hover:brightness-110"
+          >
+            📱 Lihat di Ruangan Anda (AR)
+          </button>
 
           {modelLoaded && (
-            <div className="absolute top-20 inset-x-0 mx-auto w-fit text-center pointer-events-none animate-bounce delay-1000 z-50">
-              <span className="text-[10px] font-bold text-white bg-black/75 px-4 py-2 rounded-full border border-white/10 shadow-lg">
+            <div className="absolute bottom-28 inset-x-0 mx-auto w-fit text-center pointer-events-none animate-bounce delay-1000 z-40">
+              <span className="text-[10px] font-bold text-white bg-black/75 px-4 py-2.5 rounded-full border border-white/10 shadow-lg">
                 👆 Seret untuk Memutar • 🤏 Cubit untuk Memperbesar
               </span>
             </div>
@@ -734,14 +633,7 @@ const ARView = ({ product, onBack }: { product: Product | null; onBack: () => vo
               Koleksi {product.culture}
             </span>
             <h4 className="text-sm font-bold text-white mt-1.5">{product.name}</h4>
-            <p className="text-[11px] text-slate-300 mt-1 line-clamp-1 leading-relaxed">{product.philosophy}</p>
-          </div>
-
-          <div className="bg-amber-550/15 border border-amber-500/20 p-3 rounded-2xl text-[10px] text-amber-200 text-left leading-relaxed">
-            <span className="font-bold flex items-center gap-1.5 mb-1 text-amber-400">
-              💡 Tips Objek Statis &amp; Melayang:
-            </span>
-            Kamera web browser biasa bersifat <strong>statis (mengikuti layar)</strong>. Agar objek <strong>tetap terkunci kokoh pada posisinya di lantai saat Anda berjalan/pindah ruangan</strong>, gunakan sensor spasial bawaan HP Anda dengan menekan tombol hijau di bawah.
+            <p className="text-[11px] text-slate-300 mt-1 line-clamp-2 leading-relaxed text-center">{product.philosophy}</p>
           </div>
 
           <div className="flex flex-col gap-2.5">
@@ -750,11 +642,11 @@ const ARView = ({ product, onBack }: { product: Product | null; onBack: () => vo
               className="w-full bg-gradient-to-r from-teal-500 via-teal-600 to-amber-600 hover:brightness-110 active:scale-98 transition-all text-white py-3.5 rounded-2xl text-[10.5px] font-black tracking-wider uppercase flex items-center justify-center gap-2 shadow-lg shadow-teal-500/20 cursor-pointer border-none"
             >
               <Sparkles size={14} className="text-amber-200 animate-pulse" />
-              <span>Mulai AR Spasial Nyata (HP Bawaan)</span>
+              <span>Mulai AR Spasial (Google / Apple Camera)</span>
             </button>
             
             <p className="text-[10px] text-slate-400 max-w-xs mx-auto leading-relaxed">
-              Membuka Apple AR Quick Look / Google Scene Viewer untuk melacak dan mengunci objek di atas lantai nyata.
+              Membuka Google Scene Viewer atau iOS AR Quick Look bawaan HP Anda untuk memposisikan objek 3D di lantai nyata secara presisi.
             </p>
           </div>
 
