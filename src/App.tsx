@@ -42,6 +42,10 @@ import mandarSofaImage from './assets/images/mandar_sofa_1781263192650.jpg';
 import bugisBuffetImage from './assets/images/bugis_buffet_1781263208294.jpg';
 import pareppoGlb from './assets/images/Kursi-Tamu-Pareppo-v1.glb';
 import pareppoUsdz from './assets/images/Kursi-Tamu-Pareppo-v1.usdz';
+import lemariBugisGlb from './assets/images/Lemari-Ukir-Sulur-Bugis-v1.glb';
+import lemariBugisUsdz from './assets/images/Lemari-Ukir-Sulur-Bugis-v1.usdz';
+import mejaPassuraGlb from './assets/images/Meja-Makan-Passura-v1.glb';
+import mejaPassuraUsdz from './assets/images/Meja-Makan-Passura-v1.usdz';
 
 // --- Custom Modular Drawers & Modals ---
 import Logo from './components/Logo';
@@ -171,8 +175,8 @@ const PRODUCTS: Product[] = [
     rating: 4.9,
     description: "Lemari pakaian mahakarya seni ukir Bugis dengan garis sulur organik yang elegan, sangat luas dan memperindah interior kamar tidur mewah Anda.",
     philosophy: "Motif 'sulur' pada lemari ini merepresentasikan pertumbuhan berkelanjutan, kemakmuran, dan keterhubungan segala lini kehidupan dalam falsafah adat suku Bugis.",
-    glbUrl: "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/CarbonCabinet/glTF-Binary/CarbonCabinet.glb",
-    usdzUrl: "https://developer.apple.com/augmented-reality/quick-look/models/teapot/teapot.usdz"
+    glbUrl: lemariBugisGlb,
+    usdzUrl: lemariBugisUsdz
   },
   {
     id: '3',
@@ -183,8 +187,8 @@ const PRODUCTS: Product[] = [
     rating: 4.7,
     description: "Meja makan kayu jati solid yang dihiasi ukiran geometris Toraja penuh detail presisi, cocok untuk perjamuan keluarga yang hangat.",
     philosophy: "Passura' melambangkan kearifan lokal Toraja yang dituangkan dalam ukiran geometris presisi, mengajarkan ketelitian serta keteraturan hukum semesta.",
-    glbUrl: "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/Stool/glTF-Binary/Stool.glb",
-    usdzUrl: "https://developer.apple.com/augmented-reality/quick-look/models/cupandsaucer/cup_saucer_set.usdz"
+    glbUrl: mejaPassuraGlb,
+    usdzUrl: mejaPassuraUsdz
   },
   {
     id: '4',
@@ -1022,7 +1026,7 @@ function ProductCard({
           <img 
             src={product.image} 
             alt={product.name} 
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+            className="w-full h-full object-contain p-2 group-hover:scale-105 transition-transform duration-300"
             referrerPolicy="no-referrer"
           />
           {product.status && product.status !== 'approved' && (
