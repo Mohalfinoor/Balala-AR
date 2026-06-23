@@ -29,7 +29,9 @@ import {
   Trash2,
   Plus,
   Sparkles,
-  Move
+  Move,
+  Ruler,
+  Hammer
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -72,6 +74,11 @@ interface Product {
   status?: 'pending' | 'approved' | 'rejected';
   glbUrl?: string;
   usdzUrl?: string;
+  dimensions?: {
+    length: number;
+    width: number;
+    height: number;
+  };
 }
 
 interface Culture {
@@ -166,7 +173,8 @@ const PRODUCTS: Product[] = [
     description: "Kursi tamu premium yang dibuat dari kayu jati pilihan, didesain dengan ukiran khas Toraja yang dipahat manual oleh pengrajin lokal berpengalaman.",
     philosophy: "Motif Pa'reppo pada kursi ini melambangkan keteguhan hati, kemantapan berfikir, dan kemapanan dalam jenjang kehidupan masyarakat adat Toraja.",
     glbUrl: pareppoGlb,
-    usdzUrl: pareppoUsdz
+    usdzUrl: pareppoUsdz,
+    dimensions: { length: 80, width: 75, height: 85 }
   },
   {
     id: '2',
@@ -178,7 +186,8 @@ const PRODUCTS: Product[] = [
     description: "Lemari pakaian mahakarya seni ukir Bugis dengan garis sulur organik yang elegan, sangat luas dan memperindah interior kamar tidur mewah Anda.",
     philosophy: "Motif 'sulur' pada lemari ini merepresentasikan pertumbuhan berkelanjutan, kemakmuran, dan keterhubungan segala lini kehidupan dalam falsafah adat suku Bugis.",
     glbUrl: lemariBugisGlb,
-    usdzUrl: lemariBugisUsdz
+    usdzUrl: lemariBugisUsdz,
+    dimensions: { length: 160, width: 60, height: 210 }
   },
   {
     id: '3',
@@ -190,7 +199,8 @@ const PRODUCTS: Product[] = [
     description: "Meja makan kayu jati solid yang dihiasi ukiran geometris Toraja penuh detail presisi, cocok untuk perjamuan keluarga yang hangat.",
     philosophy: "Passura' melambangkan kearifan lokal Toraja yang dituangkan dalam ukiran geometris presisi, mengajarkan ketelitian serta keteraturan hukum semesta.",
     glbUrl: mejaPassuraGlb,
-    usdzUrl: mejaPassuraUsdz
+    usdzUrl: mejaPassuraUsdz,
+    dimensions: { length: 200, width: 100, height: 78 }
   },
   {
     id: '4',
@@ -202,7 +212,8 @@ const PRODUCTS: Product[] = [
     description: "Lemari pajangan luxury dengan ukiran relief epik penjelajahan kapal legendaris Phinisi Bugis-Makassar yang mengarungi samudera luas.",
     philosophy: "Ukiran kapal Phinisi yang legendaris melambangkan keteguhan berjuang, tekad pantang menyerah, keberanian, dan jiwa pelaut sejati masyarakat Makassar.",
     glbUrl: phinisiGlb,
-    usdzUrl: phinisiUsdz
+    usdzUrl: phinisiUsdz,
+    dimensions: { length: 120, width: 45, height: 180 }
   },
   {
     id: '5',
@@ -214,7 +225,8 @@ const PRODUCTS: Product[] = [
     description: "Sofa santai dengan bantalan empuk berlapis tenun motif sutra Saqbe Mandar asli, memadukan modernitas furnitur dengan sentuhan kerajinan wastra nusantara.",
     philosophy: "Terinspirasi dari tenun Saqbe Mandar, melambangkan kerapian tatanan kebersamaan, kehangatan rasa, dan kelembutan tradisi leluhur dalam harmoni kontemporer.",
     glbUrl: "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/GlamVelvetSofa/glTF-Binary/GlamVelvetSofa.glb",
-    usdzUrl: "https://developer.apple.com/augmented-reality/quick-look/models/drummer/toy_drummer.usdz"
+    usdzUrl: "https://developer.apple.com/augmented-reality/quick-look/models/drummer/toy_drummer.usdz",
+    dimensions: { length: 210, width: 85, height: 80 }
   },
   {
     id: '6',
@@ -226,7 +238,8 @@ const PRODUCTS: Product[] = [
     description: "Meja buffet serbaguna yang anggun, mengkolaborasikan aksen kaligrafi bermakna spiritual dengan ornamen geometris lokal tanah Bugis.",
     philosophy: "Perpaduan seni kaligrafi dengan motif sakral tradisional Bugis yang melambangkan berkah spiritualitas, ketenangan batin, serta perlindungan Ilahi.",
     glbUrl: "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/ModernUpholsteredChair/glTF-Binary/ModernUpholsteredChair.glb",
-    usdzUrl: "https://developer.apple.com/augmented-reality/quick-look/models/woodchair/woodchair.usdz"
+    usdzUrl: "https://developer.apple.com/augmented-reality/quick-look/models/woodchair/woodchair.usdz",
+    dimensions: { length: 150, width: 50, height: 85 }
   }
 ];
 
@@ -380,15 +393,46 @@ const ProductDetailView = ({
             </section>
 
             <section className="pb-4">
-              <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2.5">Spesifikasi Detail</h3>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="bg-slate-50 p-4 rounded-2xl">
-                  <p className="text-[10px] text-slate-400 uppercase font-bold mb-1">Material Utama</p>
-                  <p className="text-xs font-bold text-slate-800">Kayu Jati Perhutani Grade A</p>
+              <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">Spesifikasi Detail</h3>
+              <div className="space-y-3.5">
+                {/* Material & Konstruksi Card */}
+                <div className="bg-slate-50 p-4 rounded-2xl flex items-start gap-3">
+                  <div className="p-2 bg-white rounded-xl shadow-sm text-indigo-600 shrink-0">
+                    <Hammer size={16} />
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-slate-400 uppercase font-bold tracking-wider mb-0.5">Material Utama</p>
+                    <p className="text-xs font-bold text-slate-800">Kayu Jati Perhutani Grade A</p>
+                    <p className="text-[11px] text-slate-500 mt-0.5">Handcrafted oleh pengrajin lokal dengan standard ekspor premium</p>
+                  </div>
                 </div>
+
+                {/* Dimensi Card */}
                 <div className="bg-slate-50 p-4 rounded-2xl">
-                  <p className="text-[10px] text-slate-400 uppercase font-bold mb-1">Dimensi Fisik</p>
-                  <p className="text-xs font-bold text-slate-800">P: 120cm, L: 45cm, T: 180cm</p>
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="p-2 bg-white rounded-xl shadow-sm text-teal-600 shrink-0">
+                      <Ruler size={16} />
+                    </div>
+                    <div>
+                      <p className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">Dimensi Fisik</p>
+                      <p className="text-[11px] text-slate-500">Ukuran presisi disesuaikan untuk keindahan tata ruang Anda</p>
+                    </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-3 gap-2 text-center pt-1">
+                    <div className="bg-white p-2.5 rounded-xl border border-slate-100/50">
+                      <p className="text-[9px] uppercase font-bold text-slate-400 tracking-wider">Panjang (P)</p>
+                      <p className="text-sm font-extrabold text-slate-800 mt-0.5">{(product.dimensions || { length: 120 }).length} <span className="text-[10px] font-normal text-slate-400">cm</span></p>
+                    </div>
+                    <div className="bg-white p-2.5 rounded-xl border border-slate-100/50">
+                      <p className="text-[9px] uppercase font-bold text-slate-400 tracking-wider">Lebar (L)</p>
+                      <p className="text-sm font-extrabold text-slate-800 mt-0.5">{(product.dimensions || { width: 45 }).width} <span className="text-[10px] font-normal text-slate-400">cm</span></p>
+                    </div>
+                    <div className="bg-white p-2.5 rounded-xl border border-slate-100/50">
+                      <p className="text-[9px] uppercase font-bold text-slate-400 tracking-wider">Tinggi (T)</p>
+                      <p className="text-sm font-extrabold text-slate-800 mt-0.5">{(product.dimensions || { height: 180 }).height} <span className="text-[10px] font-normal text-slate-400">cm</span></p>
+                    </div>
+                  </div>
                 </div>
               </div>
             </section>
