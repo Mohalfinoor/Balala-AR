@@ -39,7 +39,7 @@ const HERITAGE_TOPICS: CultureTopic[] = [
         meaning: "Menyerupai lipatan sirih emas melambangkan kerukunan, keterbukaan hati dalam bermusyawarah, serta tali kebersamaan warga adat."
       }
     ],
-    accentColor: 'from-teal-600 to-teal-850'
+    accentColor: 'from-teal-700 to-teal-900'
   },
   {
     id: 'bugis',
@@ -63,7 +63,7 @@ const HERITAGE_TOPICS: CultureTopic[] = [
         meaning: "Perpaduan doa spiritual keagamaan Islam dengan aksara Lontara kuno Bugis sebagai berkah perlindungan rumah."
       }
     ],
-    accentColor: 'from-amber-600 to-amber-800'
+    accentColor: 'from-amber-600 to-amber-900'
   },
   {
     id: 'makassar',
@@ -82,7 +82,7 @@ const HERITAGE_TOPICS: CultureTopic[] = [
         meaning: "Motif kelopak bunga istana emas melambangkan kemurnian akhlak, kehormatan keluarga bangsawan, serta keramahtamahan sejati."
       }
     ],
-    accentColor: 'from-red-650 to-red-800'
+    accentColor: 'from-red-700 to-red-950'
   },
   {
     id: 'mandar',
@@ -101,9 +101,48 @@ const HERITAGE_TOPICS: CultureTopic[] = [
         meaning: "Berbentuk segitiga pelindung melambangkan pagar pertahanan moralitas dilingkungan generasi penerus adat."
       }
     ],
-    accentColor: 'from-indigo-600 to-indigo-800'
+    accentColor: 'from-indigo-600 to-indigo-900'
   }
 ];
+const getTopicThemeClasses = (id: string) => {
+  switch (id) {
+    case 'toraja':
+      return {
+        bg: 'bg-teal-50 text-teal-900 border-teal-100',
+        text: 'text-teal-700',
+        lightBg: 'bg-teal-50/40 border-teal-100/50',
+        badge: 'bg-teal-600/20 text-teal-100',
+      };
+    case 'bugis':
+      return {
+        bg: 'bg-amber-50 text-amber-900 border-amber-100',
+        text: 'text-amber-700',
+        lightBg: 'bg-amber-50/30 border-amber-100/40',
+        badge: 'bg-amber-600/20 text-amber-100',
+      };
+    case 'makassar':
+      return {
+        bg: 'bg-red-50 text-red-900 border-red-100',
+        text: 'text-red-700',
+        lightBg: 'bg-red-50/30 border-red-100/40',
+        badge: 'bg-red-600/20 text-red-100',
+      };
+    case 'mandar':
+      return {
+        bg: 'bg-indigo-50 text-indigo-900 border-indigo-100',
+        text: 'text-indigo-700',
+        lightBg: 'bg-indigo-50/30 border-indigo-100/40',
+        badge: 'bg-indigo-600/20 text-indigo-100',
+      };
+    default:
+      return {
+        bg: 'bg-slate-50 text-slate-900 border-slate-100',
+        text: 'text-slate-700',
+        lightBg: 'bg-slate-50 border-slate-100',
+        badge: 'bg-slate-600/20 text-slate-100',
+      };
+  }
+};
 
 export default function HeritageModal({ isOpen, onClose }: HeritageModalProps) {
   const [activeTab, setActiveTab] = useState('toraja');
@@ -111,6 +150,7 @@ export default function HeritageModal({ isOpen, onClose }: HeritageModalProps) {
   if (!isOpen) return null;
 
   const currentTopic = HERITAGE_TOPICS.find(t => t.id === activeTab) || HERITAGE_TOPICS[0];
+  const theme = getTopicThemeClasses(currentTopic.id);
 
   return (
     <div className="fixed inset-0 z-[250] flex items-center justify-center p-4">
@@ -139,28 +179,36 @@ export default function HeritageModal({ isOpen, onClose }: HeritageModalProps) {
             <X size={18} />
           </button>
           
-          <span className="text-[10px] bg-white/20 px-2 py-0.5 rounded-full uppercase tracking-wider font-bold mb-2 inline-block">
+          <span className={`text-[10px] ${theme.badge} px-2.5 py-1 rounded-full uppercase tracking-wider font-bold mb-2 inline-block backdrop-blur-md`}>
             Kamus Budaya Balla AR
           </span>
           <h2 className="text-xl sm:text-2xl font-serif font-bold tracking-tight">{currentTopic.name}</h2>
-          <p className="text-[11px] text-teal-100/80 italic mt-1 font-serif">"{currentTopic.motto}"</p>
+          <p className="text-[11.5px] text-white/80 italic mt-1.5 font-serif">"{currentTopic.motto}"</p>
         </div>
 
         {/* Tab Switch Row */}
-        <div className="flex items-center justify-start sm:justify-center gap-2 border-b border-slate-100 overflow-x-auto no-scrollbar bg-white py-3 px-4 relative z-30 shadow-sm shrink-0">
-          {HERITAGE_TOPICS.map((topic) => (
-            <button
-              key={topic.id}
-              onClick={() => setActiveTab(topic.id)}
-              className={`py-2 px-4 font-serif text-xs font-bold whitespace-nowrap cursor-pointer transition-all rounded-full border ${
-                activeTab === topic.id 
-                  ? 'border-teal-700 text-teal-900 bg-teal-50/50 shadow-xs font-extrabold' 
-                  : 'border-transparent text-slate-500 hover:text-slate-750 bg-slate-50 hover:bg-slate-100/70'
-              }`}
-            >
-              {topic.id.toUpperCase()}
-            </button>
-          ))}
+        <div className="flex items-center justify-start sm:justify-center border-b border-slate-100 overflow-x-auto no-scrollbar bg-slate-50/50 py-3 px-4 relative z-30 shadow-xs shrink-0">
+          <div className="flex bg-slate-100/85 p-1 rounded-full shadow-inner gap-1 mx-auto max-w-full overflow-x-auto no-scrollbar">
+            {HERITAGE_TOPICS.map((topic) => {
+              const isActive = activeTab === topic.id;
+              return (
+                <button
+                  key={topic.id}
+                  onClick={() => setActiveTab(topic.id)}
+                  className={`py-1.5 px-5 font-serif text-xs font-bold tracking-wider uppercase whitespace-nowrap cursor-pointer transition-all duration-300 rounded-full ${
+                    isActive 
+                      ? `${topic.id === 'toraja' ? 'bg-teal-700 text-white shadow-xs' :
+                         topic.id === 'bugis' ? 'bg-amber-600 text-white shadow-xs' :
+                         topic.id === 'makassar' ? 'bg-red-600 text-white shadow-xs' :
+                         'bg-indigo-700 text-white shadow-xs'} scale-102 font-extrabold`
+                      : 'text-slate-500 hover:text-slate-800 hover:bg-slate-200/50'
+                  }`}
+                >
+                  {topic.id.toUpperCase()}
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         {/* Info Grid Content Scroll area */}
@@ -169,7 +217,7 @@ export default function HeritageModal({ isOpen, onClose }: HeritageModalProps) {
           {/* History */}
           <div className="space-y-2">
             <h3 className="text-[10px] uppercase font-bold text-slate-400 tracking-widest flex items-center gap-1">
-              <Landmark size={12} className="text-teal-600" /> Latar Belakang Sejarah & Filosofi
+              <Landmark size={12} className={theme.text} /> Latar Belakang Sejarah & Filosofi
             </h3>
             <p className="text-slate-600 leading-relaxed text-sm sm:text-justify">
               {currentTopic.history}
@@ -181,19 +229,19 @@ export default function HeritageModal({ isOpen, onClose }: HeritageModalProps) {
           {/* Ornaments Detail List */}
           <div className="space-y-3">
             <h3 className="text-[10px] uppercase font-bold text-slate-400 tracking-widest flex items-center gap-1">
-              <Layers size={12} className="text-teal-600" /> Detail Simbol & Motif Ornamen
+              <Layers size={12} className={theme.text} /> Detail Simbol & Motif Ornamen
             </h3>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {currentTopic.ornaments.map((ornament, idx) => (
-                <div key={idx} className="bg-slate-50 p-4 rounded-2xl border border-slate-100 space-y-1.5 transition-all hover:bg-slate-50/50">
+                <div key={idx} className="bg-slate-50/70 p-4 rounded-2xl border border-slate-100/50 space-y-1.5 transition-all hover:bg-slate-50">
                   <div className="flex items-center gap-2">
-                    <span className="w-6 h-6 rounded-lg bg-teal-50 flex items-center justify-center font-bold text-teal-800 text-sm">
+                    <span className={`w-7 h-7 rounded-lg ${theme.bg} border flex items-center justify-center font-bold text-sm shrink-0 shadow-xs`}>
                       {ornament.symbol}
                     </span>
                     <span className="font-bold text-slate-800 text-sm font-serif">{ornament.name}</span>
                   </div>
-                  <p className="text-slate-500 leading-relaxed text-[11px] pl-8">
+                  <p className="text-slate-500 leading-relaxed text-[11px] pl-9">
                     {ornament.meaning}
                   </p>
                 </div>
@@ -204,11 +252,11 @@ export default function HeritageModal({ isOpen, onClose }: HeritageModalProps) {
           <div className="h-px bg-slate-100" />
 
           {/* Educational callout */}
-          <div className="bg-teal-50 border border-teal-100 p-4 rounded-2xl flex items-start gap-3">
-            <ShieldCheck size={18} className="text-teal-600 flex-shrink-0 mt-0.5" />
+          <div className={`${theme.lightBg} border p-4 rounded-2xl flex items-start gap-3`}>
+            <ShieldCheck size={18} className={`${theme.text} flex-shrink-0 mt-0.5`} />
             <div>
-              <p className="font-bold text-teal-900 text-xs mb-0.5">Komitmen Pelestarian Seniman Adat</p>
-              <p className="text-teal-800/80 leading-relaxed text-[10px]">
+              <p className={`font-bold ${theme.text} text-xs mb-0.5`}>Komitmen Pelestarian Seniman Adat</p>
+              <p className="text-slate-650 leading-relaxed text-[10px]">
                 Seluruh ornamen ukiran dipahat manual oleh pengukir berdarah asli suku lokal. Pembelian perabot ini berkontribusi langsung sebesar 10% untuk keberlangsungan sanggar ukir di masing-masing daerah pedalaman Sulawesi Selatan.
               </p>
             </div>
@@ -220,7 +268,12 @@ export default function HeritageModal({ isOpen, onClose }: HeritageModalProps) {
         <div className="p-4 border-t border-slate-100 bg-slate-50 flex justify-end">
           <button
             onClick={onClose}
-            className="bg-teal-950 hover:bg-teal-900 text-white font-bold px-6 py-2.5 rounded-full text-xs cursor-pointer transition-colors"
+            className={`cursor-pointer transition-all font-bold px-6 py-2.5 rounded-full text-xs shadow-sm text-white ${
+              currentTopic.id === 'toraja' ? 'bg-teal-700 hover:bg-teal-850' :
+              currentTopic.id === 'bugis' ? 'bg-amber-600 hover:bg-amber-700' :
+              currentTopic.id === 'makassar' ? 'bg-red-650 hover:bg-red-750' :
+              'bg-indigo-700 hover:bg-indigo-850'
+            }`}
           >
             Selesai Membaca
           </button>
