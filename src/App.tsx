@@ -50,6 +50,8 @@ import mejaPassuraGlb from './assets/images/Meja-Makan-Passura-v1.glb';
 import mejaPassuraUsdz from './assets/images/Meja-Makan-Passura-v1.usdz';
 import phinisiGlb from './assets/images/Lemari-Ukir-Phinisi-v1.glb';
 import phinisiUsdz from './assets/images/Lemari-Ukir-Phinisi-v1.usdz';
+import buffetBugisGlb from './assets/images/Buffet-Ukir-Kaligrafi-v1.glb';
+import buffetBugisUsdz from './assets/images/Buffet-Ukir-Kaligrafi-v1.usdz';
 
 // --- Custom Modular Drawers & Modals ---
 import Logo from './components/Logo';
@@ -237,8 +239,8 @@ const PRODUCTS: Product[] = [
     rating: 4.5,
     description: "Meja buffet serbaguna yang anggun, mengkolaborasikan aksen kaligrafi bermakna spiritual dengan ornamen geometris lokal tanah Bugis.",
     philosophy: "Perpaduan seni kaligrafi dengan motif sakral tradisional Bugis yang melambangkan berkah spiritualitas, ketenangan batin, serta perlindungan Ilahi.",
-    glbUrl: "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/ModernUpholsteredChair/glTF-Binary/ModernUpholsteredChair.glb",
-    usdzUrl: "https://developer.apple.com/augmented-reality/quick-look/models/woodchair/woodchair.usdz",
+    glbUrl: buffetBugisGlb,
+    usdzUrl: buffetBugisUsdz,
     dimensions: { length: 150, width: 50, height: 85 }
   }
 ];
@@ -990,11 +992,14 @@ const HeroBanner = ({ onLearnMore }: { onLearnMore: () => void }) => (
 );
 
 // --- Culture Categories ---
-const CultureCategories = ({ onSelectCategory }: { onSelectCategory: (id: string) => void }) => {
-  const [active, setActive] = useState('toraja');
-
+const CultureCategories = ({ 
+  activeCategory, 
+  onSelectCategory 
+}: { 
+  activeCategory: string; 
+  onSelectCategory: (id: string) => void; 
+}) => {
   const handleSelect = (id: string) => {
-    setActive(id);
     onSelectCategory(id);
   };
 
@@ -1007,28 +1012,37 @@ const CultureCategories = ({ onSelectCategory }: { onSelectCategory: (id: string
         </div>
         <button 
           onClick={() => handleSelect('all')}
-          className="text-teal-600 text-xs font-bold flex items-center gap-1 hover:underline cursor-pointer"
+          className={`text-xs font-bold flex items-center gap-1 hover:underline cursor-pointer transition-colors ${
+            activeCategory === 'all' ? 'text-teal-800 font-extrabold' : 'text-teal-600'
+          }`}
         >
           Semua <ChevronRight size={14} />
         </button>
       </div>
       
-      <div className="flex gap-4 overflow-x-auto no-scrollbar pb-1">
-        {CULTURES.map((culture) => (
-          <motion.button
-            key={culture.id}
-            onClick={() => handleSelect(culture.id)}
-            whileTap={{ scale: 0.96 }}
-            className="flex flex-col items-center gap-2 min-w-[76px] transition-all cursor-pointer"
-          >
-            <div className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all duration-200 ${active === culture.id ? `${culture.pattern} text-white shadow-lg` : 'bg-slate-50 text-slate-400 hover:bg-slate-100 hover:text-slate-600'}`}>
-              {culture.icon}
-            </div>
-            <span className={`text-xs font-bold ${active === culture.id ? 'text-teal-950' : 'text-slate-400'}`}>
-              {culture.name}
-            </span>
-          </motion.button>
-        ))}
+      <div className="flex gap-4 overflow-x-auto no-scrollbar pb-1 bg-slate-50/50 p-2.5 rounded-2xl border border-slate-100/50">
+        {CULTURES.map((culture) => {
+          const isActive = activeCategory === culture.id;
+          return (
+            <motion.button
+              key={culture.id}
+              onClick={() => handleSelect(culture.id)}
+              whileTap={{ scale: 0.96 }}
+              className="flex flex-col items-center gap-2 min-w-[76px] transition-all cursor-pointer"
+            >
+              <div className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all duration-200 ${
+                isActive 
+                  ? `${culture.pattern} text-white shadow-lg scale-105` 
+                  : 'bg-white text-slate-400 hover:bg-slate-100 hover:text-slate-600 shadow-xs'
+              }`}>
+                {culture.icon}
+              </div>
+              <span className={`text-xs font-bold transition-all duration-200 ${isActive ? 'text-teal-950 font-extrabold scale-105' : 'text-slate-400 hover:text-slate-600'}`}>
+                {culture.name}
+              </span>
+            </motion.button>
+          );
+        })}
       </div>
     </div>
   );
@@ -1825,18 +1839,22 @@ export default function App() {
                 </motion.div>
               )}
 
-              <CultureCategories onSelectCategory={setCategoryFilter} />
+              <CultureCategories activeCategory={categoryFilter} onSelectCategory={setCategoryFilter} />
               
               {/* Product Grid Area */}
               <div className="mb-6">
-                <div className="flex justify-between items-end mb-5">
+                <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-2.5 mb-6 border-b border-slate-100/80 pb-4">
                   <div>
-                    <h3 className="text-base font-bold text-slate-800 font-serif">
-                      Koleksi Pilihan {categoryFilter !== 'all' ? `Adat ${categoryFilter.toUpperCase()}` : ''}
-                    </h3>
-                    <p className="text-[11px] text-slate-400">Warisan peradaban dengan kualitas konstruksi modern premium</p>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h3 className="text-base sm:text-lg font-bold text-slate-850 font-serif leading-tight">
+                        Koleksi Pilihan {categoryFilter !== 'all' ? `Adat ${categoryFilter.toUpperCase()}` : ''}
+                      </h3>
+                      <span className="bg-teal-50 text-teal-800 border border-teal-100/80 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold tracking-wide shrink-0 whitespace-nowrap shadow-xs">
+                        {filteredProducts.length} Produk
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-slate-400 mt-1 leading-normal">Warisan peradaban dengan kualitas konstruksi modern premium</p>
                   </div>
-                  <span className="text-xs text-slate-400 font-semibold">{filteredProducts.length} Produk</span>
                 </div>
                 
                 {/* Fully Fluid Responsive Grid */}
