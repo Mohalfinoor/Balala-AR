@@ -8,7 +8,7 @@ interface LogoProps extends React.HTMLAttributes<HTMLDivElement> {
 export const Logo: React.FC<LogoProps> = ({ className = 'w-10 h-10', imgClassName = 'w-full h-full object-cover', ...props }) => {
   return (
     <div 
-      className={`rounded-xl overflow-hidden bg-slate-100 border border-teal-500/10 shadow-sm transition-all duration-300 ${className}`} 
+      className={`rounded-2xl overflow-hidden bg-[#FAF8F3]/85 backdrop-blur-md border border-[#D7B463]/35 shadow-sm transition-all duration-200 ${className}`} 
       {...props}
     >
       <img 

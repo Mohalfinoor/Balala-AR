@@ -31,11 +31,15 @@ import {
   Sparkles,
   Move,
   Ruler,
-  Hammer
+  Hammer,
+  Camera,
+  Video,
+  VideoOff
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 // --- Product Asset Imports ---
+import heroBallaShowcase from './assets/images/hero_balla_showcase_1794804419592.jpg';
 import torajaChairImage from './assets/images/toraja_chair_1781263138778.jpg';
 import bugisWardrobeImage from './assets/images/bugis_wardrobe_1781263155490.jpg';
 import torajaTableImage from './assets/images/toraja_table_1781263167340.jpg';
@@ -60,6 +64,8 @@ import FavoritesDrawer from './components/FavoritesDrawer';
 import ProfileDrawer from './components/ProfileDrawer';
 import HeritageModal from './components/HeritageModal';
 import AddProductModal from './components/AddProductModal';
+import ARSnapshotModal from './components/ARSnapshotModal';
+import { captureARSnapshot, CapturedSnapshotResult } from './utils/arSnapshot';
 
 // --- Types ---
 type View = 'home' | 'ar' | 'details';
@@ -108,7 +114,7 @@ const CULTURES: Culture[] = [
         </svg>
       </div>
     ),
-    pattern: 'bg-teal-700'
+    pattern: 'bg-[#13524D]'
   },
   { 
     id: 'bugis', 
@@ -125,7 +131,7 @@ const CULTURES: Culture[] = [
         </svg>
       </div>
     ),
-    pattern: 'bg-amber-600'
+    pattern: 'bg-[#A87F2D]'
   },
   { 
     id: 'makassar', 
@@ -142,7 +148,7 @@ const CULTURES: Culture[] = [
         </svg>
       </div>
     ),
-    pattern: 'bg-red-700'
+    pattern: 'bg-[#7C3238]'
   },
   { 
     id: 'mandar', 
@@ -160,7 +166,7 @@ const CULTURES: Culture[] = [
         </svg>
       </div>
     ),
-    pattern: 'bg-indigo-800'
+    pattern: 'bg-[#2C3E5A]'
   },
 ];
 
@@ -303,20 +309,65 @@ const ProductDetailView = ({
   key?: string;
 }) => {
   const ModelViewer = 'model-viewer' as any;
+  const modelViewerRef = useRef<any>(null);
+  const [isCapturing, setIsCapturing] = useState(false);
+  const [showFlash, setShowFlash] = useState(false);
+  const [snapshotError, setSnapshotError] = useState<string | null>(null);
+  const [snapshotResult, setSnapshotResult] = useState<CapturedSnapshotResult | null>(null);
+  const [isSnapshotOpen, setIsSnapshotOpen] = useState(false);
+
+  const revokeSnapshotUrls = (snap: CapturedSnapshotResult | null) => {
+    if (!snap) return;
+    URL.revokeObjectURL(snap.rawUrl);
+    URL.revokeObjectURL(snap.brandedUrl);
+  };
+
+  useEffect(() => {
+    return () => {
+      revokeSnapshotUrls(snapshotResult);
+    };
+  }, [snapshotResult]);
+
+  const handleCaptureSnapshot = async () => {
+    if (!modelViewerRef.current || isCapturing) return;
+    setIsCapturing(true);
+    setSnapshotError(null);
+    setShowFlash(true);
+    setTimeout(() => setShowFlash(false), 180);
+
+    try {
+      const captured = await captureARSnapshot(modelViewerRef.current, product, {
+        isLightStage: true,
+      });
+      setSnapshotResult((prev) => {
+        revokeSnapshotUrls(prev);
+        return captured;
+      });
+      setIsSnapshotOpen(true);
+    } catch (err: any) {
+      setSnapshotError(err?.message || 'Gagal mengambil tangkapan layar model 3D.');
+      setTimeout(() => setSnapshotError(null), 3500);
+    } finally {
+      setIsCapturing(false);
+    }
+  };
 
   return (
     <motion.div 
       initial={{ opacity: 0, scale: 0.98 }}
       animate={{ opacity: 1, scale: 1 }}
       exit={{ opacity: 0, scale: 0.98 }}
-      className="fixed inset-0 z-[100] bg-slate-50/95 backdrop-blur-md overflow-y-auto no-scrollbar flex items-center justify-center p-0 md:p-6 lg:p-12"
+      transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+      className="fixed inset-0 z-[100] bg-[#0A2926]/40 backdrop-blur-xl overflow-y-auto no-scrollbar flex items-center justify-center p-0 md:p-6 lg:p-10"
     >
-      <div className="w-full max-w-5xl bg-white min-h-screen md:min-h-0 md:rounded-3xl shadow-2xl relative overflow-hidden flex flex-col md:flex-row">
+      <div className="w-full max-w-5xl liquid-glass min-h-screen md:min-h-0 md:rounded-[32px] shadow-2xl relative overflow-hidden flex flex-col md:flex-row">
         
         {/* Left Pane: Interactive 3D Showcase */}
-        <div className="relative h-[45vh] md:h-[600px] md:w-1/2 w-full bg-[#f8fafc] flex-shrink-0 flex items-center justify-center overflow-hidden">
+        <div className="relative h-[44vh] md:h-[620px] md:w-1/2 w-full bg-gradient-to-br from-[#EFECE4]/85 via-[#FAF8F3]/75 to-[#E5EFED]/70 flex-shrink-0 flex items-center justify-center overflow-hidden border-b md:border-b-0 md:border-r border-white/60">
+          <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(circle_at_50%_45%,rgba(19,82,77,0.09),transparent_68%)]" />
           <div className="w-full h-full relative" id="threeDContainer">
             <ModelViewer
+              ref={modelViewerRef}
               src={getAbsoluteUrl(product.glbUrl || '')}
               ios-src={getAbsoluteUrl(product.usdzUrl || '')}
               alt={product.name}
@@ -328,111 +379,146 @@ const ProductDetailView = ({
               interaction-prompt="auto"
               shadow-intensity="1.5"
               shadow-softness="1"
-              style={{ width: '100%', height: '100%', backgroundColor: '#f8fafc' }}
+              style={{ width: '100%', height: '100%', backgroundColor: 'transparent' }}
               className="w-full h-full outline-hidden"
             >
+              <button
+                type="button"
+                onClick={handleCaptureSnapshot}
+                disabled={isCapturing}
+                aria-label="Capture AR Snapshot"
+                className="absolute bottom-4 left-4 liquid-glass-pill hover:bg-[#FAF8F3] active:scale-95 text-[#10423E] font-bold text-xs py-2.5 px-4 rounded-full shadow-lg flex items-center gap-1.5 cursor-pointer z-50 transition-all whitespace-nowrap disabled:opacity-60"
+              >
+                <Camera size={14} className="text-[#A87F2D]" />
+                <span>{isCapturing ? 'Memotret...' : 'Snapshot AR'}</span>
+              </button>
+
               <button 
                 slot="ar-button" 
-                className="absolute bottom-4 right-4 bg-gradient-to-r from-amber-500 to-orange-600 hover:brightness-110 active:scale-95 text-white font-bold text-xs py-3 px-5 rounded-full shadow-lg flex items-center gap-2 cursor-pointer border-none z-50 transition-all"
+                className="absolute bottom-4 right-4 liquid-glass-teal hover:brightness-110 active:scale-95 text-[#FAF8F3] font-bold text-xs py-3 px-5 rounded-full shadow-lg flex items-center gap-2 cursor-pointer border-none z-50 transition-all whitespace-nowrap"
               >
-                📱 Lihat di Ruangan Anda (AR)
+                <Maximize2 size={14} />
+                <span>Lihat di Ruangan (AR)</span>
               </button>
-              <div slot="poster" className="absolute inset-0 flex flex-col items-center justify-center bg-slate-50/80 backdrop-blur-xs gap-3">
-                <div className="w-8 h-8 rounded-full border-2 border-teal-600 border-t-transparent animate-spin" />
-                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest animate-pulse">Menyiapkan Model Seni 3D...</span>
+              <div slot="poster" className="absolute inset-0 flex flex-col items-center justify-center bg-[#FAF8F3]/70 backdrop-blur-md gap-3">
+                <div className="w-8 h-8 rounded-full border-2 border-[#13524D] border-t-transparent animate-spin" />
+                <span className="text-[11px] font-semibold text-[#445754]">Menyiapkan Model 3D...</span>
               </div>
             </ModelViewer>
+
+            <AnimatePresence>
+              {showFlash && (
+                <motion.div
+                  initial={{ opacity: 0.9 }}
+                  animate={{ opacity: 0 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.18 }}
+                  className="absolute inset-0 bg-[#FAF8F3] pointer-events-none z-50"
+                />
+              )}
+            </AnimatePresence>
+
+            {snapshotError && (
+              <div className="absolute top-16 left-4 right-4 z-50 px-3 py-2 rounded-xl bg-[#7C3238]/90 text-[#FAF8F3] text-[11px] font-semibold text-center shadow-lg">
+                {snapshotError}
+              </div>
+            )}
           </div>
           
           {/* Back/Favorite button Overlay */}
           <div className="absolute top-4 left-4 right-4 flex justify-between items-center z-10">
             <button 
               onClick={onBack}
-              className="w-10 h-10 rounded-full bg-black/35 backdrop-blur-md flex items-center justify-center text-white border border-white/20 hover:bg-black/50 transition-colors cursor-pointer"
+              aria-label="Kembali ke galeri"
+              className="w-10 h-10 rounded-full liquid-glass-pill flex items-center justify-center text-[#10423E] hover:bg-[#FAF8F3] transition-all cursor-pointer"
             >
-              <ChevronLeft size={24} />
+              <ChevronLeft size={22} />
             </button>
             <button 
               onClick={onToggleFavorite}
-              className="w-10 h-10 rounded-full bg-black/35 backdrop-blur-md flex items-center justify-center text-white border border-white/20 hover:bg-black/50 transition-colors cursor-pointer"
+              aria-label="Tandai favorit"
+              className="w-10 h-10 rounded-full liquid-glass-pill flex items-center justify-center text-[#445754] hover:bg-[#FAF8F3] transition-all cursor-pointer"
             >
-              <Heart size={20} className={isFavorite ? "fill-rose-500 text-rose-500 animate-pulse" : "hover:fill-rose-500 transition-colors"} />
+              <Heart size={18} className={isFavorite ? "fill-[#9E3F44] text-[#9E3F44]" : "hover:text-[#9E3F44] transition-colors"} />
             </button>
           </div>
         </div>
 
       {/* Right Pane: Detailed Content */}
-      <div className="flex-1 p-6 md:p-10 flex flex-col justify-between overflow-y-auto max-h-[55vh] md:max-h-[600px] no-scrollbar pb-48 md:pb-10">
+      <div className="flex-1 p-6 md:p-10 flex flex-col justify-between overflow-y-auto max-h-[56vh] md:max-h-[620px] no-scrollbar pb-44 md:pb-10 bg-[#FAF8F3]/55">
         <div>
-          <div className="flex justify-between items-start mb-3">
+          <div className="flex justify-between items-start gap-4 mb-3">
             <div>
-              <span className="text-xs font-bold text-teal-600 uppercase tracking-widest">{product.culture} Heritage</span>
-              <h2 className="text-2xl md:text-3xl font-serif font-bold text-slate-900 leading-tight mt-1">{product.name}</h2>
-            </div>
-            <div className="bg-teal-50 px-3 py-1.5 rounded-2xl flex items-center gap-1.5 h-fit">
-              <Star size={14} className="fill-teal-600 text-teal-600" />
-              <span className="text-sm font-bold text-teal-800">{product.rating}</span>
+              <div className="flex items-center gap-2 text-xs font-semibold text-[#A87F2D]">
+                <span>Warisan {product.culture}</span>
+                <span aria-hidden="true">·</span>
+                <span className="inline-flex items-center gap-1 text-[#445754] tabular-nums">
+                  <Star size={12} className="fill-[#C59B42] text-[#C59B42]" />
+                  {product.rating}
+                </span>
+              </div>
+              <h2 className="text-2xl md:text-3xl font-serif font-bold text-[#10423E] leading-tight mt-1">{product.name}</h2>
             </div>
           </div>
 
-          <p className="text-2xl font-bold text-teal-800 mb-6">{product.price}</p>
+          <p className="text-2xl font-extrabold text-[#13524D] tabular-nums mb-6">{product.price}</p>
 
           <div className="space-y-6">
             <section>
-              <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Deskripsi Produk</h3>
-              <p className="text-slate-600 leading-relaxed text-sm">
+              <h3 className="text-xs font-bold text-[#5C6F6B] mb-2">Deskripsi Produk</h3>
+              <p className="text-[#445754] leading-relaxed text-sm">
                 {product.description}
               </p>
             </section>
 
             <section>
-              <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2.5">Filosofi & Nilai Seni</h3>
-              <div className="bg-teal-50/50 border-l-4 border-teal-600 p-4 rounded-r-2xl">
-                <p className="text-slate-700 leading-relaxed italic font-serif text-sm">
+              <h3 className="text-xs font-bold text-[#5C6F6B] mb-2.5">Filosofi &amp; Nilai Seni</h3>
+              <div className="liquid-glass-subtle p-4 rounded-2xl">
+                <p className="text-[#162624] leading-relaxed italic font-serif text-sm">
                   "{product.philosophy}"
                 </p>
               </div>
             </section>
 
             <section className="pb-4">
-              <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">Spesifikasi Detail</h3>
+              <h3 className="text-xs font-bold text-[#5C6F6B] mb-3">Spesifikasi Detail</h3>
               <div className="space-y-3.5">
                 {/* Material & Konstruksi Card */}
-                <div className="bg-slate-50 p-4 rounded-2xl flex items-start gap-3">
-                  <div className="p-2 bg-white rounded-xl shadow-sm text-indigo-600 shrink-0">
+                <div className="liquid-glass-subtle p-4 rounded-2xl flex items-start gap-3">
+                  <div className="p-2.5 bg-[#FAF8F3]/90 rounded-xl shadow-xs text-[#13524D] shrink-0 border border-[#D7B463]/25">
                     <Hammer size={16} />
                   </div>
                   <div>
-                    <p className="text-[10px] text-slate-400 uppercase font-bold tracking-wider mb-0.5">Material Utama</p>
-                    <p className="text-xs font-bold text-slate-800">Kayu Jati Perhutani Grade A</p>
-                    <p className="text-[11px] text-slate-500 mt-0.5">Handcrafted oleh pengrajin lokal dengan standard ekspor premium</p>
+                    <p className="text-[11px] text-[#5C6F6B] font-semibold mb-0.5">Material Utama</p>
+                    <p className="text-xs font-bold text-[#10423E]">Kayu Jati Perhutani Grade A</p>
+                    <p className="text-[11px] text-[#445754] mt-0.5">Dipahat tangan oleh pengrajin lokal dengan standar ekspor</p>
                   </div>
                 </div>
 
                 {/* Dimensi Card */}
-                <div className="bg-slate-50 p-4 rounded-2xl">
+                <div className="liquid-glass-subtle p-4 rounded-2xl">
                   <div className="flex items-center gap-3 mb-3">
-                    <div className="p-2 bg-white rounded-xl shadow-sm text-teal-600 shrink-0">
+                    <div className="p-2.5 bg-[#FAF8F3]/90 rounded-xl shadow-xs text-[#13524D] shrink-0 border border-[#D7B463]/25">
                       <Ruler size={16} />
                     </div>
                     <div>
-                      <p className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">Dimensi Fisik</p>
-                      <p className="text-[11px] text-slate-500">Ukuran presisi disesuaikan untuk keindahan tata ruang Anda</p>
+                      <p className="text-[11px] text-[#5C6F6B] font-semibold">Dimensi Fisik</p>
+                      <p className="text-[11px] text-[#445754]">Proporsi presisi untuk tata ruang modern</p>
                     </div>
                   </div>
                   
-                  <div className="grid grid-cols-3 gap-2 text-center pt-1">
-                    <div className="bg-white p-2.5 rounded-xl border border-slate-100/50">
-                      <p className="text-[9px] uppercase font-bold text-slate-400 tracking-wider">Panjang (P)</p>
-                      <p className="text-sm font-extrabold text-slate-800 mt-0.5">{(product.dimensions || { length: 120 }).length} <span className="text-[10px] font-normal text-slate-400">cm</span></p>
+                  <div className="grid grid-cols-3 gap-2.5 text-center pt-1">
+                    <div className="bg-[#FAF8F3]/85 p-2.5 rounded-xl border border-[#D7B463]/20">
+                      <p className="text-[10px] font-semibold text-[#5C6F6B]">Panjang</p>
+                      <p className="text-sm font-extrabold text-[#10423E] mt-0.5 tabular-nums">{(product.dimensions || { length: 120 }).length} <span className="text-[10px] font-normal text-[#5C6F6B]">cm</span></p>
                     </div>
-                    <div className="bg-white p-2.5 rounded-xl border border-slate-100/50">
-                      <p className="text-[9px] uppercase font-bold text-slate-400 tracking-wider">Lebar (L)</p>
-                      <p className="text-sm font-extrabold text-slate-800 mt-0.5">{(product.dimensions || { width: 45 }).width} <span className="text-[10px] font-normal text-slate-400">cm</span></p>
+                    <div className="bg-[#FAF8F3]/85 p-2.5 rounded-xl border border-[#D7B463]/20">
+                      <p className="text-[10px] font-semibold text-[#5C6F6B]">Lebar</p>
+                      <p className="text-sm font-extrabold text-[#10423E] mt-0.5 tabular-nums">{(product.dimensions || { width: 45 }).width} <span className="text-[10px] font-normal text-[#5C6F6B]">cm</span></p>
                     </div>
-                    <div className="bg-white p-2.5 rounded-xl border border-slate-100/50">
-                      <p className="text-[9px] uppercase font-bold text-slate-400 tracking-wider">Tinggi (T)</p>
-                      <p className="text-sm font-extrabold text-slate-800 mt-0.5">{(product.dimensions || { height: 180 }).height} <span className="text-[10px] font-normal text-slate-400">cm</span></p>
+                    <div className="bg-[#FAF8F3]/85 p-2.5 rounded-xl border border-[#D7B463]/20">
+                      <p className="text-[10px] font-semibold text-[#5C6F6B]">Tinggi</p>
+                      <p className="text-sm font-extrabold text-[#10423E] mt-0.5 tabular-nums">{(product.dimensions || { height: 180 }).height} <span className="text-[10px] font-normal text-[#5C6F6B]">cm</span></p>
                     </div>
                   </div>
                 </div>
@@ -442,22 +528,20 @@ const ProductDetailView = ({
         </div>
 
         {/* Action Panel for Desktop Detail View */}
-        <div className="hidden md:flex flex-col gap-3 mt-6 pt-6 border-t border-slate-100">
+        <div className="hidden md:flex flex-col gap-3 mt-6 pt-6 border-t border-[#D7B463]/20">
           <motion.button 
             onClick={onAddToCart}
-            whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
-            className="w-full bg-teal-600 hover:bg-teal-700 text-white py-3.5 rounded-full font-bold flex items-center justify-center gap-2 shadow-lg shadow-teal-500/15 cursor-pointer transition-colors"
+            className="w-full liquid-glass-teal hover:brightness-110 text-[#FAF8F3] py-3.5 rounded-full font-bold flex items-center justify-center gap-2 cursor-pointer transition-all"
           >
-            <ShoppingBag size={18} />
-            <span>Masukkan ke Keranjang Belanja</span>
-            <ExternalLink size={14} />
+            <ShoppingBag size={17} />
+            <span>Masukkan ke Keranjang</span>
           </motion.button>
           
           <ARLinkOrButton 
             product={product}
             onClickDesktop={onAR}
-            className="w-full bg-slate-50 hover:bg-teal-600 hover:text-white text-teal-850 dark:text-teal-850 py-3 rounded-full font-bold text-xs flex items-center justify-center gap-2 cursor-pointer transition-all border-none"
+            className="w-full liquid-glass-pill hover:bg-[#FAF8F3] text-[#10423E] py-3 rounded-full font-bold text-xs flex items-center justify-center gap-2 cursor-pointer transition-all"
           >
             <Maximize2 size={14} />
             <span>Posisikan di Ruangan Anda (AR)</span>
@@ -466,27 +550,38 @@ const ProductDetailView = ({
       </div>
     </div>
 
-    {/* Mobile Only Fixed Bottom Action Dock (Doesn't hide detail specs as we increased pb-32 padding in content pane) */}
-    <div className="fixed bottom-0 left-0 right-0 md:hidden bg-white/95 backdrop-blur-xl border-t border-slate-100 p-5 flex flex-col gap-3.5 z-50">
+    {/* Mobile Only Fixed Bottom Action Dock */}
+    <div className="fixed bottom-0 left-0 right-0 md:hidden liquid-glass border-t border-white/80 px-5 py-4 flex flex-col gap-2.5 z-50">
       <motion.button 
         onClick={onAddToCart}
         whileTap={{ scale: 0.98 }}
-        className="w-full bg-teal-600 text-white py-3.5 rounded-full font-bold flex items-center justify-center gap-2 shadow-md shadow-teal-500/15 cursor-pointer"
+        className="w-full liquid-glass-teal text-[#FAF8F3] py-3 rounded-full font-bold text-xs flex items-center justify-center gap-2 cursor-pointer"
       >
-        <ShoppingBag size={18} />
-        <span>Masukkan ke Keranjang Belanja</span>
-        <ExternalLink size={14} />
+        <ShoppingBag size={16} />
+        <span>Masukkan ke Keranjang</span>
       </motion.button>
       
       <ARLinkOrButton 
         product={product}
         onClickDesktop={onAR}
-        className="w-full bg-teal-50 text-teal-800 py-3 rounded-full font-semibold text-xs flex items-center justify-center gap-2 cursor-pointer border-none"
+        className="w-full liquid-glass-pill text-[#10423E] py-2.5 rounded-full font-semibold text-xs flex items-center justify-center gap-2 cursor-pointer"
       >
         <Maximize2 size={14} />
         <span>Posisikan di Ruangan Anda (AR)</span>
       </ARLinkOrButton>
     </div>
+
+    <AnimatePresence>
+      {isSnapshotOpen && (
+        <ARSnapshotModal
+          isOpen={isSnapshotOpen}
+          onClose={() => setIsSnapshotOpen(false)}
+          snapshot={snapshotResult}
+          product={product}
+          onRetake={() => setIsSnapshotOpen(false)}
+        />
+      )}
+    </AnimatePresence>
   </motion.div>
  );
 };
@@ -495,50 +590,121 @@ const ProductDetailView = ({
 const ARView = ({ product, onBack }: { product: Product | null; onBack: () => void; key?: string }) => {
   const ModelViewer = 'model-viewer' as any;
   const modelViewerRef = useRef<any>(null);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
   
   const [modelLoaded, setModelLoaded] = useState(false);
-  const [isIOS, setIsIOS] = useState(false);
-  const [isAndroid, setIsAndroid] = useState(false);
+  const [isCameraActive, setIsCameraActive] = useState(false);
+  const [isWebXRActive, setIsWebXRActive] = useState(false);
+  const [cameraError, setCameraError] = useState<string | null>(null);
+  const [isCapturing, setIsCapturing] = useState(false);
+  const [showFlash, setShowFlash] = useState(false);
+  const [snapshotResult, setSnapshotResult] = useState<CapturedSnapshotResult | null>(null);
+  const [isSnapshotOpen, setIsSnapshotOpen] = useState(false);
 
-  // Identify platform for dedicated native fallback triggers
+  const revokeSnapshotUrls = (snap: CapturedSnapshotResult | null) => {
+    if (!snap) return;
+    URL.revokeObjectURL(snap.rawUrl);
+    URL.revokeObjectURL(snap.brandedUrl);
+  };
+
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const ua = navigator.userAgent;
-      const ios = /iPad|iPhone|iPod/.test(ua) && !(window as any).MSStream;
-      const android = /Android/.test(ua);
-      setIsIOS(ios);
-      setIsAndroid(android);
+    return () => {
+      revokeSnapshotUrls(snapshotResult);
+    };
+  }, [snapshotResult]);
+
+  // Listen for WebXR AR status transitions inside <model-viewer>
+  useEffect(() => {
+    const el = modelViewerRef.current;
+    if (!el) return;
+    const handleArStatus = (event: any) => {
+      const status = event?.detail?.status;
+      setIsWebXRActive(status === 'session-started' || status === 'object-placed');
+    };
+    el.addEventListener('ar-status', handleArStatus);
+    return () => {
+      el.removeEventListener('ar-status', handleArStatus);
+    };
+  }, [product?.id]);
+
+  // Clean up camera stream on unmount
+  const stopCameraStream = () => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((t) => t.stop());
+      streamRef.current = null;
     }
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
+    setIsCameraActive(false);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((t) => t.stop());
+        streamRef.current = null;
+      }
+    };
   }, []);
+
+  const handleToggleCamera = async () => {
+    setCameraError(null);
+    if (isCameraActive) {
+      stopCameraStream();
+      return;
+    }
+
+    if (typeof navigator === 'undefined' || !navigator.mediaDevices?.getUserMedia) {
+      setCameraError('Akses kamera langsung tidak didukung pada peramban ini.');
+      setTimeout(() => setCameraError(null), 4000);
+      return;
+    }
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'environment' },
+        audio: false,
+      });
+      streamRef.current = stream;
+      setIsCameraActive(true);
+      requestAnimationFrame(() => {
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+          videoRef.current.play().catch(() => {});
+        }
+      });
+    } catch {
+      setCameraError('Izin kamera ditolak atau tidak tersedia. Mode Studio AR tetap siap digunakan.');
+      setTimeout(() => setCameraError(null), 4000);
+    }
+  };
 
   if (!product) return null;
 
-  // Manual/Programmatic trigger fallback if native button is not visible or user clicks primary card action
-  const handleLaunchNativeAR = () => {
-    if (modelViewerRef.current) {
-      try {
-        if (typeof modelViewerRef.current.activateAR === 'function') {
-          console.log("Mengaktifkan AR bawaan model-viewer secara programmatis...");
-          modelViewerRef.current.activateAR();
-          return;
-        }
-      } catch (err) {
-        console.warn("Gagal mengaktifkan AR bawaan model-viewer secara programmatis:", err);
-      }
-    }
+  const handleCaptureSnapshot = async () => {
+    if (!modelViewerRef.current || isCapturing) return;
+    setIsCapturing(true);
+    setCameraError(null);
+    setShowFlash(true);
+    setTimeout(() => setShowFlash(false), 180);
 
-    // Direct Quick Look trigger for iOS if ModelViewer helper fails
-    if (isIOS) {
-      const usdzUrl = getAbsoluteUrl(product.usdzUrl) || "https://developer.apple.com/augmented-reality/quick-look/models/woodchair/woodchair.usdz";
-      const anchor = document.createElement('a');
-      anchor.setAttribute('rel', 'ar');
-      anchor.setAttribute('href', usdzUrl);
-      const img = document.createElement('img');
-      img.src = product.image;
-      anchor.appendChild(img);
-      document.body.appendChild(anchor);
-      anchor.click();
-      document.body.removeChild(anchor);
+    try {
+      const captured = await captureARSnapshot(modelViewerRef.current, product, {
+        videoEl: isCameraActive ? videoRef.current : null,
+        isLightStage: false,
+      });
+      setSnapshotResult((prev) => {
+        revokeSnapshotUrls(prev);
+        return captured;
+      });
+      setIsSnapshotOpen(true);
+    } catch (err: any) {
+      setCameraError(err?.message || 'Gagal mengambil tangkapan layar AR.');
+      setTimeout(() => setCameraError(null), 4000);
+    } finally {
+      setIsCapturing(false);
     }
   };
 
@@ -547,31 +713,71 @@ const ARView = ({ product, onBack }: { product: Product | null; onBack: () => vo
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 w-full h-screen z-[200] bg-slate-950 overflow-hidden flex flex-col"
+      className="fixed inset-0 w-full h-screen z-[200] bg-[#061311] overflow-hidden flex flex-col"
     >
-      {/* Decorative premium virtual studio stage background */}
-      <div className="absolute inset-0 z-0 bg-gradient-to-b from-slate-900 via-slate-950 to-neutral-950 pointer-events-none">
-        <div className="absolute top-[25%] left-1/2 -translate-x-1/2 w-[350px] h-[350px] bg-teal-500/10 rounded-full blur-[100px]" />
-        <div className="absolute bottom-10 left-[20%] w-[250px] h-[250px] bg-amber-500/5 rounded-full blur-[90px]" />
-        <div className="absolute bottom-0 inset-x-0 h-40 bg-radial from-white/5 to-transparent blur-[40px] opacity-20" />
-      </div>
+      {/* Live Camera AR Feed OR Virtual Studio Stage */}
+      {isCameraActive ? (
+        <video
+          ref={videoRef}
+          autoPlay
+          playsInline
+          muted
+          className="absolute inset-0 w-full h-full object-cover z-0"
+        />
+      ) : (
+        <div className="absolute inset-0 z-0 bg-gradient-to-b from-[#0D2B28] via-[#091E1C] to-[#061311] pointer-events-none">
+          <div className="absolute top-[25%] left-1/2 -translate-x-1/2 w-[350px] h-[350px] bg-[#1B6861]/15 rounded-full blur-[100px]" />
+          <div className="absolute bottom-10 left-[20%] w-[250px] h-[250px] bg-[#C59B42]/10 rounded-full blur-[90px]" />
+          <div className="absolute bottom-0 inset-x-0 h-40 bg-radial from-[#FAF8F3]/5 to-transparent blur-[40px] opacity-20" />
+        </div>
+      )}
 
       {/* Top Header Overlay */}
-      <div className="absolute top-0 inset-x-0 z-50 bg-gradient-to-b from-black/85 via-black/40 to-transparent p-5 flex items-center justify-between">
+      <div className="absolute top-0 inset-x-0 z-50 p-4 sm:p-5 flex items-center justify-between gap-2 pointer-events-none">
         <button 
-          onClick={onBack}
-          className="w-10 h-10 rounded-full bg-black/60 backdrop-blur-md flex items-center justify-center text-white border border-white/20 hover:bg-black/80 transition-colors cursor-pointer"
+          onClick={() => {
+            stopCameraStream();
+            onBack();
+          }}
+          aria-label="Kembali"
+          className="w-10 h-10 rounded-full liquid-glass-dark flex items-center justify-center text-[#FAF8F3] hover:bg-white/15 transition-colors cursor-pointer pointer-events-auto shrink-0"
         >
-          <ChevronLeft size={24} />
+          <ChevronLeft size={22} />
         </button>
-        <span className="text-white text-[10px] font-black tracking-widest uppercase bg-slate-800/80 backdrop-blur-md px-4 py-2.5 rounded-full border border-slate-700/80 shadow-xl flex items-center gap-2">
-          <span className="w-2 h-2 bg-amber-400 rounded-full animate-pulse" />
-          Mode Studio 3D &amp; AR
-        </span>
-        <div className="w-10 h-10" />
+
+        <div className="liquid-glass-dark px-4 sm:px-5 py-2 rounded-full text-center pointer-events-auto min-w-0 max-w-[55vw] sm:max-w-md">
+          <p className="text-[#FAF8F3] text-xs font-serif font-bold leading-tight truncate">{product.name}</p>
+          <p className="text-[#D7B463] text-[10px] font-medium truncate">
+            {isWebXRActive
+              ? `Mode WebXR AR · ${product.culture}`
+              : isCameraActive
+              ? `Kamera AR Langsung · ${product.culture}`
+              : `Studio 3D & AR · ${product.culture}`}
+          </p>
+        </div>
+
+        <button
+          type="button"
+          onClick={handleToggleCamera}
+          aria-label={isCameraActive ? 'Matikan kamera langsung' : 'Aktifkan kamera langsung AR'}
+          title={isCameraActive ? 'Kembali ke Studio AR' : 'Buka Kamera Ruangan Langsung'}
+          className={`h-10 px-3 sm:px-3.5 rounded-full liquid-glass-dark flex items-center gap-1.5 text-xs font-bold transition-colors cursor-pointer pointer-events-auto shrink-0 whitespace-nowrap ${
+            isCameraActive ? 'text-[#D7B463] border-[#D7B463]/45' : 'text-[#FAF8F3] hover:bg-white/15'
+          }`}
+        >
+          {isCameraActive ? <VideoOff size={15} /> : <Video size={15} />}
+          <span className="hidden sm:inline">{isCameraActive ? 'Studio' : 'Kamera AR'}</span>
+        </button>
       </div>
 
-      {/* Main Interactive 3D Canvas */}
+      {/* Inline Camera / Snapshot Notification */}
+      {cameraError && (
+        <div className="absolute top-20 inset-x-4 mx-auto max-w-md z-50 px-4 py-2.5 rounded-2xl liquid-glass-dark border border-[#D7B463]/35 text-[#F7EFDB] text-xs font-medium text-center shadow-xl">
+          {cameraError}
+        </div>
+      )}
+
+      {/* Main Interactive 3D & AR Canvas */}
       <div className="flex-1 w-full h-full relative flex items-center justify-center z-10 pt-16">
         <ModelViewer
           ref={modelViewerRef}
@@ -591,32 +797,75 @@ const ARView = ({ product, onBack }: { product: Product | null; onBack: () => vo
           className="w-full h-full outline-hidden"
           onLoad={() => setModelLoaded(true)}
         >
-          {/* Custom AR Button Slot styled premiumly based on user's exact specification */}
+          {/* Capture AR Snapshot Shutter Button (rendered inside model-viewer DOM overlay too) */}
+          {modelLoaded && (
+            <button
+              type="button"
+              onClick={handleCaptureSnapshot}
+              disabled={isCapturing}
+              aria-label="Capture AR Snapshot"
+              className="absolute bottom-5 left-4 sm:bottom-6 sm:left-6 liquid-glass-gold active:scale-95 text-[#0A2926] font-extrabold text-xs py-3 sm:py-3.5 px-4 sm:px-5 rounded-full shadow-2xl flex items-center gap-2 cursor-pointer z-50 transition-all hover:brightness-105 whitespace-nowrap disabled:opacity-60"
+            >
+              <Camera size={15} />
+              <span className="sm:hidden">{isCapturing ? 'Memotret...' : 'Snapshot AR'}</span>
+              <span className="hidden sm:inline">{isCapturing ? 'Memotret...' : 'Capture AR Snapshot'}</span>
+            </button>
+          )}
+
+          {/* Custom AR Button Slot */}
           <button 
             slot="ar-button" 
-            className="absolute bottom-6 right-6 bg-gradient-to-r from-amber-500 via-amber-600 to-orange-600 active:scale-95 text-white font-bold text-xs py-3.5 px-6 rounded-full shadow-2xl flex items-center gap-2 cursor-pointer border-none z-50 transition-all hover:brightness-110"
+            className="absolute bottom-5 right-4 sm:bottom-6 sm:right-6 liquid-glass-teal active:scale-95 text-[#FAF8F3] font-bold text-xs py-3 sm:py-3.5 px-4 sm:px-6 rounded-full shadow-2xl flex items-center gap-2 cursor-pointer border-none z-50 transition-all hover:brightness-110 whitespace-nowrap"
           >
-            📱 Lihat di Ruangan Anda (AR)
+            <Maximize2 size={15} />
+            <span className="sm:hidden">Mode AR</span>
+            <span className="hidden sm:inline">Lihat di Ruangan Anda (AR)</span>
           </button>
 
-          {modelLoaded && (
-            <div className="absolute bottom-10 inset-x-0 mx-auto w-fit text-center pointer-events-none animate-bounce delay-1000 z-40">
-              <span className="text-[10px] font-bold text-white bg-black/75 px-4 py-2.5 rounded-full border border-white/10 shadow-lg">
-                👆 Seret untuk Memutar • 🤏 Cubit untuk Memperbesar
+          {modelLoaded && !isWebXRActive && (
+            <div className="absolute bottom-20 inset-x-0 mx-auto w-fit text-center pointer-events-none z-40">
+              <span className="text-[11px] font-medium text-[#FAF8F3]/90 liquid-glass-dark px-4 py-2 rounded-full">
+                Seret untuk memutar · Cubit untuk memperbesar
               </span>
             </div>
           )}
 
           {!modelLoaded && (
-            <div slot="poster" className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-slate-950/40 text-white z-20">
-              <div className="w-9 h-9 rounded-full border-3 border-teal-500 border-t-transparent animate-spin" />
-              <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest animate-pulse">
+            <div slot="poster" className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-[#061311]/55 text-[#FAF8F3] z-20">
+              <div className="w-9 h-9 rounded-full border-2 border-[#D7B463] border-t-transparent animate-spin" />
+              <span className="text-xs font-medium text-[#E5EFED]">
                 Menyiapkan Model Seni 3D {product.culture}...
               </span>
             </div>
           )}
         </ModelViewer>
+
+        {/* Visual Camera Shutter Flash */}
+        <AnimatePresence>
+          {showFlash && (
+            <motion.div
+              initial={{ opacity: 0.9 }}
+              animate={{ opacity: 0 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.18 }}
+              className="fixed inset-0 bg-[#FAF8F3] pointer-events-none z-[240]"
+            />
+          )}
+        </AnimatePresence>
       </div>
+
+      {/* Snapshot Preview & Social Media Share Modal */}
+      <AnimatePresence>
+        {isSnapshotOpen && (
+          <ARSnapshotModal
+            isOpen={isSnapshotOpen}
+            onClose={() => setIsSnapshotOpen(false)}
+            snapshot={snapshotResult}
+            product={product}
+            onRetake={() => setIsSnapshotOpen(false)}
+          />
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 };
@@ -650,7 +899,36 @@ const Header = ({
   userRole: 'user' | 'admin' | 'curator';
 }) => {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [isHeaderVisible, setIsHeaderVisible] = useState(true);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const lastScrollYRef = useRef(0);
+
+  // Follow on scroll down, hide when scrolling up (always visible near top or when menu open)
+  useEffect(() => {
+    lastScrollYRef.current = typeof window !== 'undefined' ? Math.max(0, window.scrollY) : 0;
+
+    const handleScroll = () => {
+      const currentY = Math.max(0, window.scrollY);
+      const delta = currentY - lastScrollYRef.current;
+
+      if (isDropdownOpen || currentY <= 24) {
+        setIsHeaderVisible(true);
+      } else if (delta > 6) {
+        setIsHeaderVisible(true);
+      } else if (delta < -6 && currentY > 48) {
+        setIsHeaderVisible(false);
+      }
+
+      if (Math.abs(delta) > 2) {
+        lastScrollYRef.current = currentY;
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+    };
+  }, [isDropdownOpen]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -668,293 +946,240 @@ const Header = ({
   const totalBadges = cartCount + favoritesCount + (unreadCount > 0 ? 1 : 0);
 
   return (
-    <div className="bg-white sticky top-0 z-40 py-4 px-6 border-b border-slate-100">
-      <div className="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+    <header className="sticky top-0 z-40 px-4 sm:px-6 pt-3 pb-1 pointer-events-none">
+      <div
+        ref={dropdownRef}
+        className={`max-w-7xl mx-auto liquid-glass rounded-2xl sm:rounded-3xl px-4 sm:px-6 py-3 flex flex-col md:flex-row md:items-center md:justify-between gap-3 relative transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${
+          isHeaderVisible
+            ? 'translate-y-0 opacity-100 pointer-events-auto'
+            : '-translate-y-[calc(100%+16px)] opacity-0 pointer-events-none'
+        }`}
+      >
         
         {/* Brand Profile section */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Logo 
-              onClick={onHomeClick}
-              className="w-10 h-10 cursor-pointer active:scale-95 hover:brightness-105"
-            />
-            <div onClick={onHomeClick} className="cursor-pointer">
-              <h1 className="text-xl font-bold tracking-tight text-teal-900 font-serif hover:text-teal-700 transition-colors">Balla AR</h1>
-              <p className="text-[9px] text-slate-400 uppercase tracking-widest font-semibold">South Sulawesi Heritage Interiors</p>
+        <div className="flex items-center justify-between gap-4">
+          <button onClick={onHomeClick} className="flex items-center gap-3 text-left cursor-pointer shrink-0">
+            <Logo className="w-9 h-9 sm:w-10 sm:h-10" />
+            <div>
+              <h1 className="text-lg sm:text-xl font-bold tracking-tight text-[#10423E] font-serif leading-none whitespace-nowrap">Balla AR</h1>
+              <p className="text-[10px] text-[#5C6F6B] font-medium mt-0.5 hidden sm:block whitespace-nowrap">South Sulawesi Heritage Interiors</p>
             </div>
-          </div>
+          </button>
           
-          {/* Mobile Profile Logo Trigger - In the notification / top-right area */}
-          <div className="relative md:hidden flex items-center" ref={dropdownRef}>
+          {/* Mobile Profile & Quick Menu Trigger */}
+          <div className="relative md:hidden flex items-center gap-2">
+            <button
+              onClick={onCartClick}
+              aria-label="Buka keranjang"
+              className="w-10 h-10 rounded-full liquid-glass-pill flex items-center justify-center text-[#10423E] relative cursor-pointer"
+            >
+              <ShoppingBag size={17} />
+              {cartCount > 0 && (
+                <span className="absolute -top-1 -right-1 bg-[#13524D] text-[#FAF8F3] text-[9px] font-bold w-4 h-4 rounded-full flex items-center justify-center tabular-nums">
+                  {cartCount}
+                </span>
+              )}
+            </button>
             <button 
               onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-              className={`w-10 h-10 rounded-full ${googleUser ? 'bg-gradient-to-tr from-teal-500 to-amber-500 p-0.5 shadow-md hover:brightness-105' : 'bg-slate-100 hover:bg-slate-200 border border-slate-200/80 flex items-center justify-center text-slate-500'} active:scale-95 transition-all cursor-pointer relative`}
+              aria-label="Buka menu pengguna"
+              className={`w-10 h-10 rounded-full ${googleUser ? 'bg-gradient-to-tr from-[#13524D] to-[#C59B42] p-0.5 shadow-sm' : 'liquid-glass-pill flex items-center justify-center text-[#445754]'} active:scale-95 transition-all cursor-pointer relative`}
             >
               {googleUser ? (
                 <img 
                   src={googleUser.avatar} 
                   alt="Avatar" 
-                  className="w-full h-full rounded-full object-cover border border-white/25"
+                  className="w-full h-full rounded-full object-cover border border-white/50"
                   referrerPolicy="no-referrer"
                 />
               ) : (
                 <User size={18} />
               )}
               {totalBadges > 0 && (
-                <span className="absolute -top-1 -right-1 bg-rose-500 border-2 border-white text-white text-[8px] font-bold w-4.5 h-4.5 rounded-full flex items-center justify-center">
+                <span className="absolute -top-1 -right-1 bg-[#9E3F44] border-2 border-[#FAF8F3] text-[#FAF8F3] text-[8px] font-bold w-4.5 h-4.5 rounded-full flex items-center justify-center tabular-nums">
                   {totalBadges}
                 </span>
               )}
             </button>
-
-            {/* Mobile Dropdown content */}
-            <AnimatePresence>
-              {isDropdownOpen && (
-                <motion.div
-                  initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                  className="absolute right-0 top-12 w-64 bg-white border border-slate-200 shadow-2xl rounded-2xl p-3 z-50 flex flex-col gap-1.5"
-                >
-                  {googleUser ? (
-                    <div className="px-2.5 py-2 border-b border-slate-50 mb-1">
-                      <p className="text-xs font-bold text-slate-800 truncate">{googleUser.name}</p>
-                      <p className="text-[9.5px] text-slate-500 truncate">{googleUser.email}</p>
-                    </div>
-                  ) : (
-                    <div className="px-2.5 py-2 border-b border-slate-50 mb-1">
-                      <p className="text-xs font-bold text-slate-800">Menunggu Masuk</p>
-                      <p className="text-[9.5px] text-slate-400 font-medium">Balla AR Guest Mode</p>
-                    </div>
-                  )}
-                  
-                  <button 
-                    onClick={() => { onFavoritesClick(); setIsDropdownOpen(false); }}
-                    className="flex items-center gap-3 p-2 rounded-xl text-slate-700 hover:bg-slate-50 text-left transition-colors cursor-pointer w-full"
-                  >
-                    <div className="w-8 h-8 rounded-lg bg-rose-50 flex items-center justify-center text-rose-500 relative flex-shrink-0">
-                      <Heart size={16} />
-                      {favoritesCount > 0 && (
-                        <span className="absolute -top-1.5 -right-1.5 bg-rose-500 text-white text-[8px] font-bold font-mono w-4 h-4 rounded-full flex items-center justify-center">
-                          {favoritesCount}
-                        </span>
-                      )}
-                    </div>
-                    <div>
-                      <h4 className="text-xs font-bold text-slate-800">Favorit Saya</h4>
-                      <p className="text-[9px] text-slate-500 leading-none">Pusaka tersimpan</p>
-                    </div>
-                  </button>
-
-                  <button 
-                    onClick={() => { onCartClick(); setIsDropdownOpen(false); }}
-                    className="flex items-center gap-3 p-2 rounded-xl text-slate-700 hover:bg-slate-50 text-left transition-colors cursor-pointer w-full"
-                  >
-                    <div className="w-8 h-8 rounded-lg bg-amber-50 flex items-center justify-center text-amber-600 relative flex-shrink-0">
-                      <ShoppingBag size={16} />
-                      {cartCount > 0 && (
-                        <span className="absolute -top-1.5 -right-1.5 bg-amber-500 text-white text-[8px] font-bold font-mono w-4 h-4 rounded-full flex items-center justify-center">
-                          {cartCount}
-                        </span>
-                      )}
-                    </div>
-                    <div>
-                      <h4 className="text-xs font-bold text-slate-800">Keranjang Belanja</h4>
-                      <p className="text-[9px] text-slate-500 leading-none">Total {cartCount} item</p>
-                    </div>
-                  </button>
-
-                  <button 
-                    onClick={() => { onNotificationClick(); setIsDropdownOpen(false); }}
-                    className="flex items-center gap-3 p-2 rounded-xl text-slate-700 hover:bg-slate-50 text-left transition-colors cursor-pointer w-full"
-                  >
-                    <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center text-blue-600 relative flex-shrink-0">
-                      <Bell size={16} />
-                      {unreadCount > 0 && (
-                        <span className="absolute -top-1.5 -right-1.5 bg-rose-500 text-white text-[8px] font-bold font-mono w-4 h-4 rounded-full flex items-center justify-center">
-                          {unreadCount}
-                        </span>
-                      )}
-                    </div>
-                    <div>
-                      <h4 className="text-xs font-bold text-slate-800">Pusat Informasi</h4>
-                      <p className="text-[9px] text-slate-500 leading-none">Info AR & Promo</p>
-                    </div>
-                  </button>
-
-                  <button 
-                    onClick={() => { onProfileClick(); setIsDropdownOpen(false); }}
-                    className="flex items-center gap-3 p-2 rounded-xl text-slate-700 hover:bg-slate-50 text-left transition-colors border-t border-slate-50 pt-3 mt-1 cursor-pointer w-full"
-                  >
-                    <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center text-slate-600 flex-shrink-0">
-                      <User size={16} />
-                    </div>
-                    <div>
-                      <h4 className="text-xs font-bold text-slate-800">Edit Profil</h4>
-                      <p className="text-[9px] text-slate-500 leading-none">Nama Lengkap & Kontak</p>
-                    </div>
-                  </button>
-
-                </motion.div>
-              )}
-            </AnimatePresence>
           </div>
         </div>
         
-        {/* Unified Search & Desktop notification */}
-        <div className="flex items-center gap-4 flex-1 max-w-lg md:ml-auto">
+        {/* Search & Desktop Actions */}
+        <div className="flex items-center gap-3 flex-1 max-w-xl md:ml-auto">
           <div className="relative flex-1">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#5C6F6B] pointer-events-none" size={15} />
             <input 
               type="text" 
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Cari perabot adat Toraja, Bugis..." 
-              className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3 pl-11 pr-10 text-xs focus:ring-1 focus:ring-teal-600/30 transition-all outline-none"
+              placeholder="Cari kursi Toraja, lemari Bugis, sofa Mandar..." 
+              className="w-full liquid-glass-input rounded-2xl py-2.5 pl-10 pr-9 text-xs text-[#162624] placeholder:text-[#5C6F6B]/80 outline-none transition-all"
             />
             {searchQuery && (
               <button 
                 onClick={() => setSearchQuery('')}
-                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-sm font-bold font-mono transition-colors cursor-pointer"
+                aria-label="Hapus pencarian"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-[#5C6F6B] hover:text-[#10423E] text-sm font-bold transition-colors cursor-pointer"
               >
                 ×
               </button>
             )}
           </div>
 
-          {/* Desktop Profile Logo Trigger - Replacing/Integrating Bell and Profile */}
-          <div className="hidden md:flex relative" ref={dropdownRef}>
-            <button 
-              onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-              className={`w-10 h-10 rounded-full ${googleUser ? 'bg-gradient-to-tr from-teal-500 to-amber-500 p-0.5 shadow-md hover:brightness-105' : 'bg-slate-100 hover:bg-slate-200 border border-slate-200/80 flex items-center justify-center text-slate-500'} active:scale-95 transition-all cursor-pointer relative`}
+          {/* Desktop Quick Glass Action Icons */}
+          <div className="hidden md:flex items-center gap-2 shrink-0">
+            <button
+              onClick={onFavoritesClick}
+              aria-label="Favorit Saya"
+              title="Favorit Saya"
+              className="w-10 h-10 rounded-full liquid-glass-pill flex items-center justify-center text-[#445754] hover:text-[#9E3F44] transition-colors cursor-pointer relative"
             >
-              {googleUser ? (
-                <img 
-                  src={googleUser.avatar} 
-                  alt="Avatar" 
-                  className="w-full h-full rounded-full object-cover border border-white/25"
-                  referrerPolicy="no-referrer"
-                />
-              ) : (
-                <User size={18} />
-              )}
-              {totalBadges > 0 && (
-                <span className="absolute -top-1 -right-1 bg-rose-500 border-2 border-white text-white text-[8px] font-bold w-4.5 h-4.5 rounded-full flex items-center justify-center">
-                  {totalBadges}
+              <Heart size={17} />
+              {favoritesCount > 0 && (
+                <span className="absolute -top-1 -right-1 bg-[#9E3F44] border-2 border-[#FAF8F3] text-[#FAF8F3] text-[9px] font-bold w-4.5 h-4.5 rounded-full flex items-center justify-center tabular-nums">
+                  {favoritesCount}
                 </span>
               )}
             </button>
 
-            {/* Desktop Dropdown content */}
-            <AnimatePresence>
-              {isDropdownOpen && (
-                <motion.div
-                  initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                  className="absolute right-0 top-12 w-72 bg-white border border-slate-100 shadow-2xl rounded-2xl p-3 z-50 flex flex-col gap-1.5"
-                >
-                  <div className="px-2.5 py-2 border-b border-slate-100 mb-1">
+            <button
+              onClick={onCartClick}
+              aria-label="Keranjang Belanja"
+              title="Keranjang Belanja"
+              className="w-10 h-10 rounded-full liquid-glass-pill flex items-center justify-center text-[#445754] hover:text-[#13524D] transition-colors cursor-pointer relative"
+            >
+              <ShoppingBag size={17} />
+              {cartCount > 0 && (
+                <span className="absolute -top-1 -right-1 bg-[#13524D] border-2 border-[#FAF8F3] text-[#FAF8F3] text-[9px] font-bold w-4.5 h-4.5 rounded-full flex items-center justify-center tabular-nums">
+                  {cartCount}
+                </span>
+              )}
+            </button>
+
+            <button
+              onClick={onNotificationClick}
+              aria-label="Pusat Informasi"
+              title="Pusat Informasi"
+              className="w-10 h-10 rounded-full liquid-glass-pill flex items-center justify-center text-[#445754] hover:text-[#A87F2D] transition-colors cursor-pointer relative"
+            >
+              <Bell size={17} />
+              {unreadCount > 0 && (
+                <span className="absolute -top-1 -right-1 bg-[#C59B42] border-2 border-[#FAF8F3] text-[#0A2926] text-[9px] font-extrabold w-4.5 h-4.5 rounded-full flex items-center justify-center tabular-nums">
+                  {unreadCount}
+                </span>
+              )}
+            </button>
+          </div>
+
+          {/* Desktop Profile Trigger */}
+          <button 
+            onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+            aria-label="Akun & Peran"
+            className={`hidden md:flex w-10 h-10 rounded-full ${googleUser ? 'bg-gradient-to-tr from-[#13524D] to-[#C59B42] p-0.5 shadow-sm hover:brightness-105' : 'liquid-glass-pill items-center justify-center text-[#445754] hover:text-[#10423E]'} active:scale-95 transition-all cursor-pointer relative shrink-0`}
+          >
+            {googleUser ? (
+              <img 
+                src={googleUser.avatar} 
+                alt="Avatar" 
+                className="w-full h-full rounded-full object-cover border border-white/50"
+                referrerPolicy="no-referrer"
+              />
+            ) : (
+              <User size={18} />
+            )}
+          </button>
+        </div>
+
+        {/* Unified Dropdown Menu */}
+        <AnimatePresence>
+          {isDropdownOpen && (
+            <motion.div
+              initial={{ opacity: 0, y: 8, scale: 0.96 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 8, scale: 0.96 }}
+              transition={{ duration: 0.16, ease: [0.16, 1, 0.3, 1] }}
+              className="absolute right-3 sm:right-5 top-[60px] md:top-[66px] w-72 liquid-glass rounded-2xl p-3 z-50 flex flex-col gap-1.5 shadow-2xl"
+            >
+                  <div className="px-2.5 py-2 border-b border-[#D7B463]/20 mb-1">
                     {googleUser ? (
                       <>
-                        <p className="text-xs font-bold text-slate-800 truncate">{googleUser.name}</p>
-                        <p className="text-[10px] text-slate-400 truncate">{googleUser.email}</p>
-                        <span className="mt-1.5 inline-flex items-center gap-1 bg-teal-500/10 text-teal-700 border border-teal-500/20 text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
+                        <p className="text-xs font-bold text-[#10423E] truncate">{googleUser.name}</p>
+                        <p className="text-[10.5px] text-[#5C6F6B] truncate">{googleUser.email}</p>
+                        <p className="mt-1 text-[10px] font-bold text-[#A87F2D]">
                           {userRole === 'admin' 
                             ? 'Mitra Penjual' 
                             : userRole === 'curator' 
                             ? 'Kurator Adat' 
                             : 'Kolektor Pusaka Adat'}
-                        </span>
+                        </p>
                       </>
                     ) : (
                       <>
-                        <p className="text-xs font-bold text-slate-800">Tamu Nusantara</p>
-                        <p className="text-[10px] text-slate-400">Belum tersambung Google</p>
-                        <span className="mt-1.5 inline-flex items-center gap-1 bg-slate-100 text-slate-600 border border-slate-205 text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
-                          Mode Tamu / Offline
-                        </span>
+                        <p className="text-xs font-bold text-[#10423E]">Tamu Nusantara</p>
+                        <p className="text-[10.5px] text-[#5C6F6B]">Belum tersambung Google · Mode Tamu</p>
                       </>
                     )}
                   </div>
                   
                   <button 
                     onClick={() => { onFavoritesClick(); setIsDropdownOpen(false); }}
-                    className="flex items-center gap-3 p-2 rounded-xl text-slate-700 hover:bg-slate-50 text-left transition-colors cursor-pointer w-full"
+                    className="flex items-center gap-3 p-2 rounded-xl text-[#445754] hover:bg-[#FAF8F3]/75 text-left transition-colors cursor-pointer w-full"
                   >
-                    <div className="w-8 h-8 rounded-lg bg-rose-50 flex items-center justify-center text-rose-500 relative flex-shrink-0">
-                      <Heart size={16} />
-                      {favoritesCount > 0 && (
-                        <span className="absolute -top-1.5 -right-1.5 bg-rose-500 text-white text-[8px] font-bold font-mono w-4 h-4 rounded-full flex items-center justify-center">
-                          {favoritesCount}
-                        </span>
-                      )}
+                    <div className="w-8 h-8 rounded-lg bg-[#9E3F44]/10 flex items-center justify-center text-[#9E3F44] relative flex-shrink-0">
+                      <Heart size={15} />
                     </div>
-                    <div>
-                      <h4 className="text-xs font-bold text-slate-800">Favorit Saya</h4>
-                      <p className="text-[9.5px] text-slate-400 leading-none">Daftar perabot tersimpan ({favoritesCount})</p>
+                    <div className="min-w-0 flex-1">
+                      <h4 className="text-xs font-bold text-[#162624]">Favorit Saya</h4>
+                      <p className="text-[10px] text-[#5C6F6B] leading-none tabular-nums">{favoritesCount} perabot tersimpan</p>
                     </div>
                   </button>
 
                   <button 
                     onClick={() => { onCartClick(); setIsDropdownOpen(false); }}
-                    className="flex items-center gap-3 p-2 rounded-xl text-slate-700 hover:bg-slate-50 text-left transition-colors cursor-pointer w-full"
+                    className="flex items-center gap-3 p-2 rounded-xl text-[#445754] hover:bg-[#FAF8F3]/75 text-left transition-colors cursor-pointer w-full"
                   >
-                    <div className="w-8 h-8 rounded-lg bg-amber-50 flex items-center justify-center text-amber-600 relative flex-shrink-0">
-                      <ShoppingBag size={16} />
-                      {cartCount > 0 && (
-                        <span className="absolute -top-1.5 -right-1.5 bg-amber-500 text-white text-[8px] font-bold font-mono w-4 h-4 rounded-full flex items-center justify-center">
-                          {cartCount}
-                        </span>
-                      )}
+                    <div className="w-8 h-8 rounded-lg bg-[#C59B42]/15 flex items-center justify-center text-[#A87F2D] relative flex-shrink-0">
+                      <ShoppingBag size={15} />
                     </div>
-                    <div>
-                      <h4 className="text-xs font-bold text-slate-805">Keranjang Belanja</h4>
-                      <p className="text-[9.5px] text-slate-400 leading-none">Daftar perabot di keranjang ({cartCount})</p>
+                    <div className="min-w-0 flex-1">
+                      <h4 className="text-xs font-bold text-[#162624]">Keranjang Belanja</h4>
+                      <p className="text-[10px] text-[#5C6F6B] leading-none tabular-nums">{cartCount} item di keranjang</p>
                     </div>
                   </button>
 
                   <button 
                     onClick={() => { onNotificationClick(); setIsDropdownOpen(false); }}
-                    className="flex items-center gap-3 p-2 rounded-xl text-slate-700 hover:bg-slate-50 text-left transition-colors cursor-pointer w-full"
+                    className="flex items-center gap-3 p-2 rounded-xl text-[#445754] hover:bg-[#FAF8F3]/75 text-left transition-colors cursor-pointer w-full"
                   >
-                    <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center text-blue-600 relative flex-shrink-0">
-                      <Bell size={16} />
-                      {unreadCount > 0 && (
-                        <span className="absolute -top-1.5 -right-1.5 bg-rose-500 text-white text-[8px] font-bold font-mono w-4 h-4 rounded-full flex items-center justify-center">
-                          {unreadCount}
-                        </span>
-                      )}
+                    <div className="w-8 h-8 rounded-lg bg-[#13524D]/10 flex items-center justify-center text-[#13524D] relative flex-shrink-0">
+                      <Bell size={15} />
                     </div>
-                    <div>
-                      <h4 className="text-xs font-bold text-slate-800">Pusat Informasi</h4>
-                      <p className="text-[9.5px] text-slate-400 leading-none">Berita, instruksi AR & diskon</p>
+                    <div className="min-w-0 flex-1">
+                      <h4 className="text-xs font-bold text-[#162624]">Pusat Informasi</h4>
+                      <p className="text-[10px] text-[#5C6F6B] leading-none tabular-nums">{unreadCount} info belum dibaca</p>
                     </div>
                   </button>
 
                   <button 
                     onClick={() => { onProfileClick(); setIsDropdownOpen(false); }}
-                    className="flex items-center gap-3 p-2 rounded-xl text-slate-700 hover:bg-slate-50 text-left transition-colors border-t border-slate-100 pt-3 mt-1 cursor-pointer w-full"
+                    className="flex items-center gap-3 p-2 rounded-xl text-[#445754] hover:bg-[#FAF8F3]/75 text-left transition-colors border-t border-[#D7B463]/20 pt-2.5 mt-1 cursor-pointer w-full"
                   >
-                    <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center text-slate-600 flex-shrink-0">
-                      <User size={16} />
+                    <div className="w-8 h-8 rounded-lg bg-[#10423E]/10 flex items-center justify-center text-[#10423E] flex-shrink-0">
+                      <User size={15} />
                     </div>
-                    <div>
-                      <h4 className="text-xs font-bold text-slate-800">{googleUser ? 'Edit Profil & Kupon' : 'Hubungkan Akun Google'}</h4>
-                      <p className="text-[9.5px] text-slate-400 leading-none">
-                        {googleUser ? 'Atur kontak, bahasa & suara narasi' : 'Hubungkan akun dengan cepat di sini'}
+                    <div className="min-w-0 flex-1">
+                      <h4 className="text-xs font-bold text-[#162624]">{googleUser ? 'Profil, Peran & Kupon' : 'Hubungkan Akun Google'}</h4>
+                      <p className="text-[10px] text-[#5C6F6B] leading-none">
+                        {googleUser ? 'Atur peran mitra, kontak & bahasa' : 'Masuk cepat dengan Google'}
                       </p>
                     </div>
                   </button>
-
                 </motion.div>
               )}
             </AnimatePresence>
-          </div>
-        </div>
 
       </div>
-    </div>
+    </header>
   );
 };
 
@@ -962,30 +1187,41 @@ const Header = ({
 const HeroBanner = ({ onLearnMore }: { onLearnMore: () => void }) => (
   <div className="mb-8">
     <motion.div 
-      initial={{ opacity: 0, y: 15 }}
+      initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
-      className="relative h-48 sm:h-60 md:h-72 lg:h-80 rounded-3xl overflow-hidden shadow-md group animate-fade-in"
+      transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+      className="liquid-glass rounded-[32px] p-1.5 sm:p-2"
     >
-      <img 
-        src="https://images.unsplash.com/photo-1616486338812-3dadae4b4ace?q=80&w=1200&auto=format&fit=crop" 
-        alt="Toraja Carved Heritage Showcase" 
-        className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-        referrerPolicy="no-referrer"
-      />
-      <div className="absolute inset-0 bg-gradient-to-r from-teal-950/80 via-teal-950/45 to-transparent flex flex-col justify-center p-6 sm:p-10">
-        <span className="text-teal-200 text-[9px] sm:text-xs uppercase tracking-[0.25em] font-bold mb-2">
-          Edisi Warisan Bangsa
-        </span>
-        <h2 className="text-white text-xl sm:text-3xl font-serif font-bold leading-tight max-w-xs sm:max-w-md">
-          Ukir Nusantara di Ruang Modern <span className="italic font-normal">Seni Falsafah Hidup</span>
-        </h2>
-        <motion.button 
-          onClick={onLearnMore}
-          whileTap={{ scale: 0.95 }}
-          className="mt-5 bg-white text-teal-950 hover:bg-slate-50 px-5 py-2.5 rounded-full text-xs font-bold w-fit shadow-md transition-colors cursor-pointer"
-        >
-          Pelajari Warisan Ukir
-        </motion.button>
+      <div className="relative h-56 sm:h-72 md:h-80 lg:h-[360px] rounded-[26px] overflow-hidden group">
+        <img 
+          src={heroBallaShowcase} 
+          alt="Interior Modern dengan Furnitur Ukir Adat Sulawesi Selatan" 
+          className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+          referrerPolicy="no-referrer"
+        />
+        <div className="absolute inset-0 bg-gradient-to-r from-[#0B2926]/90 via-[#10423E]/52 to-transparent flex flex-col justify-center p-6 sm:p-10 lg:p-12">
+          <p className="text-[#E6CD8A] text-xs font-semibold mb-2 tracking-wide">
+            Edisi Warisan Sulawesi Selatan
+          </p>
+          <h2 className="text-[#FAF8F3] text-2xl sm:text-3xl lg:text-4xl font-serif font-bold leading-tight max-w-md sm:max-w-lg [text-wrap:balance]">
+            Ukir Nusantara di Ruang Modern <span className="italic font-normal text-[#F7EFDB]">Seni Falsafah Hidup</span>
+          </h2>
+          <div className="mt-6 flex flex-wrap items-center gap-3">
+            <motion.button 
+              onClick={onLearnMore}
+              whileTap={{ scale: 0.96 }}
+              className="liquid-glass-pill text-[#10423E] hover:bg-[#FAF8F3] px-5 py-2.5 rounded-full text-xs font-bold w-fit transition-all cursor-pointer whitespace-nowrap"
+            >
+              Pelajari Warisan Ukir
+            </motion.button>
+            <a 
+              href="#katalog-pilihan"
+              className="text-[#FAF8F3]/95 hover:text-white text-xs font-semibold px-4 py-2.5 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-md border border-[#D7B463]/35 transition-all whitespace-nowrap"
+            >
+              Lihat Koleksi
+            </a>
+          </div>
+        </div>
       </div>
     </motion.div>
   </div>
@@ -1007,20 +1243,20 @@ const CultureCategories = ({
     <div className="mb-8">
       <div className="flex justify-between items-end mb-4">
         <div>
-          <h3 className="text-base font-bold text-slate-800 font-serif">Pilih Adat Kebudayaan</h3>
-          <p className="text-[11px] text-slate-400">Jelajahi nilai filosofis unik setiap suku</p>
+          <h3 className="text-base sm:text-lg font-bold text-[#10423E] font-serif">Pilih Adat Kebudayaan</h3>
+          <p className="text-xs text-[#5C6F6B]">Jelajahi nilai filosofis unik setiap suku</p>
         </div>
         <button 
           onClick={() => handleSelect('all')}
-          className={`text-xs font-bold flex items-center gap-1 hover:underline cursor-pointer transition-colors ${
-            activeCategory === 'all' ? 'text-teal-800 font-extrabold' : 'text-teal-600'
+          className={`text-xs font-bold flex items-center gap-1 hover:underline cursor-pointer transition-colors whitespace-nowrap shrink-0 ${
+            activeCategory === 'all' ? 'text-[#10423E] underline' : 'text-[#13524D]'
           }`}
         >
-          Semua <ChevronRight size={14} />
+          Semua Koleksi <ChevronRight size={14} />
         </button>
       </div>
       
-      <div className="flex gap-4 overflow-x-auto no-scrollbar pb-1 bg-slate-50/50 p-2.5 rounded-2xl border border-slate-100/50">
+      <div className="flex gap-3 sm:gap-4 overflow-x-auto no-scrollbar liquid-glass p-2.5 sm:p-3 rounded-3xl">
         {CULTURES.map((culture) => {
           const isActive = activeCategory === culture.id;
           return (
@@ -1028,16 +1264,18 @@ const CultureCategories = ({
               key={culture.id}
               onClick={() => handleSelect(culture.id)}
               whileTap={{ scale: 0.96 }}
-              className="flex flex-col items-center gap-2 min-w-[76px] transition-all cursor-pointer"
+              className={`flex flex-col items-center gap-2 min-w-[82px] px-3 py-2 rounded-2xl transition-all cursor-pointer shrink-0 ${
+                isActive ? 'bg-[#FAF8F3]/85 shadow-sm border border-[#D7B463]/35' : 'hover:bg-[#FAF8F3]/45'
+              }`}
             >
-              <div className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all duration-200 ${
+              <div className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all duration-200 ${
                 isActive 
-                  ? `${culture.pattern} text-white shadow-lg scale-105` 
-                  : 'bg-white text-slate-400 hover:bg-slate-100 hover:text-slate-600 shadow-xs'
+                  ? `${culture.pattern} text-[#FAF8F3] shadow-md scale-105` 
+                  : 'bg-[#FAF8F3]/85 text-[#5C6F6B] border border-white/80'
               }`}>
                 {culture.icon}
               </div>
-              <span className={`text-xs font-bold transition-all duration-200 ${isActive ? 'text-teal-950 font-extrabold scale-105' : 'text-slate-400 hover:text-slate-600'}`}>
+              <span className={`text-xs font-bold whitespace-nowrap transition-colors ${isActive ? 'text-[#10423E]' : 'text-[#445754]'}`}>
                 {culture.name}
               </span>
             </motion.button>
@@ -1077,88 +1315,91 @@ function ProductCard({
     <motion.div 
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: index * 0.05 }}
+      transition={{ delay: index * 0.04, duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
       onClick={onClick}
-      className="bg-white rounded-2xl p-3 shadow-xs border border-slate-100 hover:border-slate-200 transition-all cursor-pointer group flex flex-col justify-between"
+      className="liquid-glass-card rounded-3xl p-3 sm:p-3.5 cursor-pointer group flex flex-col justify-between"
     >
       <div>
-        <div className="relative aspect-square rounded-xl overflow-hidden mb-3 bg-slate-50">
+        <div className="relative aspect-square rounded-2xl overflow-hidden mb-3 bg-[#FAF8F3]/85 border border-[#D7B463]/20">
           <img 
             src={product.image} 
             alt={product.name} 
-            className="w-full h-full object-contain p-2 group-hover:scale-105 transition-transform duration-300"
+            className="w-full h-full object-contain p-2.5 group-hover:scale-105 transition-transform duration-300"
             referrerPolicy="no-referrer"
           />
           {product.status && product.status !== 'approved' && (
-            <div className="absolute top-2 left-2 animate-fade-in z-10">
-              <span className={`px-2 py-0.5 rounded-md text-[9px] font-extrabold tracking-wider uppercase shadow-md ${
-                product.status === 'pending' ? 'bg-amber-600 text-white' : 'bg-rose-600 text-white'
+            <div className="absolute top-2.5 left-2.5 z-10">
+              <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold shadow-sm ${
+                product.status === 'pending' ? 'bg-[#A87F2D] text-[#FAF8F3]' : 'bg-[#7C3238] text-[#FAF8F3]'
               }`}>
-                {product.status === 'pending' ? '🕒 Kurasi' : '❌ Ditolak'}
+                {product.status === 'pending' ? 'Kurasi' : 'Ditolak'}
               </span>
             </div>
           )}
-          <div className="absolute top-2 right-2 flex gap-1 animate-fade-in">
+          <div className="absolute top-2.5 right-2.5">
             <button 
               onClick={(e) => { e.stopPropagation(); onToggleFavorite(); }}
-              className="w-7 h-7 rounded-full bg-white/90 hover:bg-white flex items-center justify-center text-slate-500 shadow-xs cursor-pointer hover:text-rose-500 transition-colors"
+              aria-label="Simpan ke favorit"
+              className="w-8 h-8 rounded-full liquid-glass-pill flex items-center justify-center text-[#5C6F6B] cursor-pointer hover:text-[#9E3F44] transition-colors"
             >
-              <Heart size={13} className={isFavorite ? "fill-rose-500 text-rose-500" : ""} />
+              <Heart size={14} className={isFavorite ? "fill-[#9E3F44] text-[#9E3F44]" : ""} />
             </button>
           </div>
-          <div className="absolute bottom-2 left-2">
+          <div className="absolute bottom-2.5 left-2.5">
             <ARLinkOrButton 
               product={product}
               onClickDesktop={(e) => { e.stopPropagation(); onARClick(e); }}
-              className="bg-teal-600/90 hover:bg-teal-600 backdrop-blur-xs text-white px-2 py-1 rounded-md flex items-center gap-1 shadow-sm active:scale-95 transition-transform cursor-pointer border-none"
+              className="liquid-glass-teal hover:brightness-110 text-[#FAF8F3] px-2.5 py-1 rounded-full flex items-center gap-1 active:scale-95 transition-transform cursor-pointer whitespace-nowrap"
             >
               <Maximize2 size={10} />
-              <span className="text-[9px] font-bold tracking-wider">AR</span>
+              <span className="text-[10px] font-bold tracking-wide">AR</span>
             </ARLinkOrButton>
           </div>
         </div>
         
         <div className="px-1">
-          <div className="flex justify-between items-center mb-1">
-            <span className="text-[9px] font-bold text-teal-600 uppercase tracking-widest">{product.culture}</span>
-            <div className="flex items-center gap-0.5">
-              <Star size={10} className="fill-amber-400 text-amber-400" />
-              <span className="text-[9px] font-bold text-slate-500">{product.rating}</span>
-            </div>
+          <div className="flex items-center gap-1.5 text-[11px] font-medium text-[#5C6F6B] mb-1">
+            <span className="text-[#A87F2D] font-semibold">{product.culture}</span>
+            <span aria-hidden="true">·</span>
+            <span className="inline-flex items-center gap-0.5 tabular-nums text-[#445754]">
+              <Star size={11} className="fill-[#C59B42] text-[#C59B42]" />
+              {product.rating}
+            </span>
           </div>
-          <h4 className="text-xs font-bold text-slate-800 leading-tight mb-2 group-hover:text-teal-800 transition-colors line-clamp-1">{product.name}</h4>
+          <h4 className="text-sm font-serif font-bold text-[#162624] leading-snug mb-2 group-hover:text-[#13524D] transition-colors line-clamp-1">{product.name}</h4>
         </div>
       </div>
 
       <div className="px-1 mt-auto">
-        <div className="flex justify-between items-center pt-2 border-t border-slate-50">
-          <span className="text-xs font-bold text-teal-900 font-mono">{product.price}</span>
+        <div className="flex justify-between items-center pt-2.5 border-t border-[#D7B463]/20 gap-2">
+          <span className="text-xs sm:text-sm font-extrabold text-[#10423E] tabular-nums truncate">{product.price}</span>
           
           {userRole === 'admin' ? (
             product.culture.toLowerCase() === adminCulture.toLowerCase() ? (
               <button 
                 onClick={(e) => { e.stopPropagation(); onDelete(); }}
-                className="px-2.5 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-100 text-[9px] font-extrabold flex items-center gap-1 cursor-pointer transition-all active:scale-95 shrink-0"
+                className="px-2.5 py-1.5 rounded-xl bg-[#9E3F44]/10 hover:bg-[#9E3F44]/20 text-[#9E3F44] border border-[#9E3F44]/25 text-[10px] font-bold flex items-center gap-1 cursor-pointer transition-all active:scale-95 shrink-0"
                 title="Hapus Produk dari Toko Anda"
               >
-                <Trash2 size={10} />
+                <Trash2 size={11} />
                 <span>Hapus</span>
               </button>
             ) : (
               <span 
-                className="px-2 py-1.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-400 text-[8.5px] font-semibold flex items-center gap-0.5 select-none"
+                className="text-[10px] text-[#5C6F6B] font-medium select-none shrink-0"
                 title="Produk ini milik sanggar adat lain"
               >
-                <span>🔒</span> Toko Lain
+                Sanggar lain
               </span>
             )
           ) : (
             <button 
               onClick={(e) => { e.stopPropagation(); onAddToCart(); }}
-              className="w-7 h-7 rounded-full bg-teal-900 hover:bg-teal-950 text-white flex items-center justify-center shadow-xs cursor-pointer active:scale-90 transition-transform shrink-0"
+              aria-label="Tambah ke keranjang"
+              className="w-8 h-8 rounded-full liquid-glass-teal hover:brightness-110 text-[#FAF8F3] flex items-center justify-center cursor-pointer active:scale-90 transition-all shrink-0"
               title="Tambah ke Keranjang"
             >
-              <ShoppingBag size={12} />
+              <ShoppingBag size={13} />
             </button>
           )}
         </div>
@@ -1370,9 +1611,9 @@ export default function App() {
         const parsed = JSON.parse(saved);
         if (parsed && typeof parsed.avatar === 'string' && (parsed.avatar.includes('unsplash.com') || parsed.avatar.includes('photo-'))) {
           if (parsed.email === 'wirabuanamohalfinoor@gmail.com') {
-            parsed.avatar = 'https://ui-avatars.com/api/?name=Wirabuana+Mohalfinoor&background=0d9488&color=fff&bold=true&size=150';
+            parsed.avatar = 'https://ui-avatars.com/api/?name=Wirabuana+Mohalfinoor&background=13524D&color=FAF8F3&bold=true&size=150';
           } else {
-            parsed.avatar = 'https://ui-avatars.com/api/?name=Tamu+Nusantara&background=4f46e5&color=fff&bold=true&size=150';
+            parsed.avatar = 'https://ui-avatars.com/api/?name=Tamu+Nusantara&background=A87F2D&color=FAF8F3&bold=true&size=150';
           }
           localStorage.setItem('ballaar_google_user', JSON.stringify(parsed));
         }
@@ -1555,39 +1796,46 @@ export default function App() {
   });
 
   return (
-    <div className="min-h-screen bg-white text-slate-800 font-sans antialiased relative">
+    <div className="min-h-screen liquid-canvas text-[#162624] font-sans antialiased relative overflow-x-clip">
+      {/* Ambient Liquid Glass Light Orbs */}
+      <div className="fixed inset-0 overflow-hidden pointer-events-none -z-10">
+        <div className="absolute -top-24 -right-16 w-[440px] h-[440px] bg-[#1B6861]/14 rounded-full blur-[90px] animate-liquid-drift" />
+        <div className="absolute top-[42%] -left-24 w-[380px] h-[380px] bg-[#C59B42]/14 rounded-full blur-[90px]" />
+        <div className="absolute -bottom-24 right-[20%] w-[420px] h-[420px] bg-[#13524D]/10 rounded-full blur-[100px]" />
+      </div>
+
       <AnimatePresence>
         {showSplash && (
           <motion.div
             key="splash"
             initial={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.6, ease: 'easeOut' }}
-            className="fixed inset-0 z-[10000] bg-gradient-to-b from-[#F8FAFA] to-[#EEF4F4] flex flex-col items-center justify-between py-20 px-6"
+            transition={{ duration: 0.5, ease: 'easeOut' }}
+            className="fixed inset-0 z-[10000] liquid-canvas backdrop-blur-xl flex flex-col items-center justify-between py-20 px-6"
           >
             <div className="h-10" />
 
-            <div className="flex flex-col items-center gap-5">
+            <div className="flex flex-col items-center gap-5 liquid-glass rounded-3xl px-10 py-8">
               <div className="flex items-center gap-4 sm:gap-5">
-                <Logo className="w-14 h-14 sm:w-16 sm:h-16 shadow-md rounded-xl border border-teal-500/15" />
+                <Logo className="w-14 h-14 sm:w-16 sm:h-16 shadow-md" />
                 <div className="flex flex-col select-none">
-                  <h1 className="text-[40px] sm:text-[48px] font-bold font-serif text-teal-900 leading-[0.9] tracking-tight">
+                  <h1 className="text-[40px] sm:text-[48px] font-bold font-serif text-[#10423E] leading-[0.9] tracking-tight">
                     Balla
                   </h1>
-                  <p className="text-[14px] sm:text-[16px] font-extrabold text-amber-600 tracking-[0.45em] uppercase text-left pl-0.5">
+                  <p className="text-[14px] sm:text-[16px] font-extrabold text-[#A87F2D] tracking-[0.45em] uppercase text-left pl-0.5">
                     AR
                   </p>
                 </div>
               </div>
-              <p className="text-[9.5px] sm:text-[10px] font-bold text-teal-700/60 tracking-[0.4em] uppercase text-center mt-2 max-w-xs leading-relaxed">
+              <p className="text-[10px] font-bold text-[#13524D]/75 tracking-[0.3em] uppercase text-center mt-1 max-w-xs leading-relaxed">
                 South Sulawesi Heritage Interiors
               </p>
             </div>
 
-            <div className="flex flex-col items-center gap-4">
-              <div className="w-8 h-8 rounded-full border-2 border-teal-900/10 border-t-teal-600 animate-spin" />
-              <span className="text-[10px] sm:text-[11px] font-bold text-teal-800/60 tracking-[0.35em] uppercase">
-                Memuat Karya
+            <div className="flex flex-col items-center gap-3">
+              <div className="w-7 h-7 rounded-full border-2 border-[#13524D]/20 border-t-[#13524D] animate-spin" />
+              <span className="text-xs font-semibold text-[#10423E]/75">
+                Memuat Galeri Karya
               </span>
             </div>
           </motion.div>
@@ -1603,14 +1851,6 @@ export default function App() {
             exit={{ opacity: 0 }}
             className="w-full flex flex-col min-h-screen"
           >
-            {/* Dynamic Background Circle Accents */}
-            <div className="absolute inset-0 overflow-hidden pointer-events-none -z-10">
-              <div className="absolute top-0 right-0 w-96 h-96 bg-teal-50 rounded-full -translate-y-1/2 translate-x-1/3 blur-3xl" />
-              <div className="absolute bottom-10 left-0 w-96 h-96 bg-amber-50 rounded-full translate-y-1/3 -translate-x-1/3 blur-3xl" />
-            </div>
-
-
-
             <Header 
               searchQuery={searchQuery}
               setSearchQuery={setSearchQuery}
@@ -1626,7 +1866,7 @@ export default function App() {
               userRole={userRole}
             />
             
-            <main className="flex-1 max-w-7xl mx-auto w-full px-6 py-6 pb-12">
+            <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 py-5 pb-14">
               <HeroBanner onLearnMore={() => setIsHeritageModalOpen(true)} />
 
               {/* Admin Dashboard Control Card */}
@@ -1634,45 +1874,40 @@ export default function App() {
                 <motion.div
                   initial={{ opacity: 0, y: -10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="bg-gradient-to-r from-teal-950 via-slate-905 to-teal-980 text-white rounded-3xl p-6 shadow-xl border border-teal-900/30 mb-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-6"
+                  className="liquid-glass-dark text-[#FAF8F3] rounded-3xl p-6 mb-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-6"
                 >
                   <div className="space-y-1.5">
-                    <div className="flex items-center gap-2">
-                      <div className="p-1 px-2.5 bg-amber-500/15 border border-amber-500/25 text-amber-300 font-extrabold rounded-full text-[9px] uppercase tracking-wider font-sans">
-                        🛠️ Dasbor Pengrajin Aktif
-                      </div>
-                      <span className="text-[10px] text-teal-300/60 font-semibold font-mono">ID: {adminCulture.toUpperCase()}-ADMIN</span>
+                    <div className="flex items-center gap-2 text-xs text-[#D7B463] font-semibold">
+                      <span>Dasbor Pengrajin Aktif</span>
+                      <span aria-hidden="true">·</span>
+                      <span className="text-[#F7EFDB]">{adminCulture}</span>
                     </div>
-                    <h2 className="text-xl font-serif font-bold tracking-tight">
-                      Selamat Datang di Panel {getStoreName(adminCulture)}
+                    <h2 className="text-xl font-serif font-bold tracking-tight text-[#FAF8F3]">
+                      Panel {getStoreName(adminCulture)}
                     </h2>
-                    <p className="text-xs text-slate-300 max-w-2xl leading-relaxed">
-                      Kelola karya seni kerajinan berkualitas premium Anda. Sebagai admin dari toko ini, Anda dapat menambahkan produk pusaka baru, serta memilah/menghapus produk asli yang terdaftar di bawah nama toko Anda.
+                    <p className="text-xs text-[#E5EFED]/80 max-w-2xl leading-relaxed">
+                      Kelola karya seni kerajinan Anda. Tambahkan produk pusaka baru atau kelola koleksi yang terdaftar di bawah sanggar Anda.
                     </p>
                     
-                    {/* Quick Stats Row */}
-                    <div className="flex gap-6 mt-4 pt-4 border-t border-slate-800">
+                    <div className="flex gap-6 mt-4 pt-4 border-t border-[#D7B463]/20">
                       <div>
-                        <p className="text-[9.5px] text-slate-400 uppercase tracking-widest leading-none font-bold">Koleksi Terdaftar</p>
-                        <p className="text-base font-extrabold font-mono text-amber-300 mt-1">
-                          {products.filter(p => p.culture.toLowerCase() === adminCulture.toLowerCase()).length} <span className="text-xs font-sans text-slate-400 font-normal">Karya Adat</span>
+                        <p className="text-[11px] text-[#E5EFED]/70 font-medium">Koleksi Terdaftar</p>
+                        <p className="text-base font-extrabold tabular-nums text-[#D7B463] mt-0.5">
+                          {products.filter(p => p.culture.toLowerCase() === adminCulture.toLowerCase()).length} <span className="text-xs font-sans text-[#E5EFED]/80 font-normal">Karya Adat</span>
                         </p>
                       </div>
                       <div>
-                        <p className="text-[9.5px] text-slate-400 uppercase tracking-widest leading-none font-bold">Status Layanan</p>
-                        <div className="flex items-center gap-1.5 mt-1">
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                          <span className="text-xs font-bold text-emerald-400">Sanggar Terbuka (Live)</span>
-                        </div>
+                        <p className="text-[11px] text-[#E5EFED]/70 font-medium">Status Layanan</p>
+                        <p className="text-xs font-bold text-[#9ED4C8] mt-1">Sanggar Terbuka</p>
                       </div>
                     </div>
                   </div>
                   
                   <button
                     onClick={() => setIsAddProductModalOpen(true)}
-                    className="bg-teal-600 hover:bg-teal-700 active:scale-95 text-white font-bold px-6 py-3.5 rounded-full text-xs flex items-center gap-2 shadow-lg shadow-teal-900/10 cursor-pointer self-stretch md:self-auto justify-center transition-all shrink-0"
+                    className="liquid-glass-gold hover:brightness-105 active:scale-95 text-[#0A2926] font-extrabold px-6 py-3.5 rounded-full text-xs flex items-center gap-2 cursor-pointer self-stretch md:self-auto justify-center transition-all shrink-0 whitespace-nowrap"
                   >
-                    <Plus size={15} className="stroke-[3]" />
+                    <Plus size={15} className="stroke-[2.5]" />
                     <span>Tambah Produk Baru</span>
                   </button>
                 </motion.div>
@@ -1683,41 +1918,35 @@ export default function App() {
                 <motion.div
                   initial={{ opacity: 0, y: -10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="bg-slate-900 text-white rounded-3xl p-6 shadow-xl border border-slate-800 mb-8 space-y-6 overflow-hidden relative"
+                  className="liquid-glass-dark text-[#FAF8F3] rounded-3xl p-6 mb-8 space-y-6 overflow-hidden relative"
                 >
-                  <div className="absolute top-0 right-0 w-36 h-36 bg-teal-500/5 rounded-full translate-x-12 -translate-y-12 pointer-events-none" />
-                  
-                  <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-slate-800 pb-5">
+                  <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-[#D7B463]/20 pb-5">
                     <div className="space-y-1.5">
-                      <div className="flex items-center gap-2">
-                        <div className="p-1 px-2.5 bg-indigo-500/15 border border-indigo-500/25 text-amber-300 font-extrabold rounded-full text-[9px] uppercase tracking-wider font-sans">
-                          🛡️ Panel Kurator Adat Balla AR
-                        </div>
-                        <span className="text-[10px] text-zinc-400 font-semibold font-mono flex items-center gap-1">
-                          <CheckCircle2 size={10} className="text-teal-400" /> KOMITE EVALUASI ADAT
-                        </span>
+                      <div className="flex items-center gap-2 text-xs text-[#D7B463] font-semibold">
+                        <CheckCircle2 size={13} />
+                        <span>Komite Evaluasi Adat</span>
                       </div>
-                      <h2 className="text-xl font-serif font-bold tracking-tight">
-                        Persetujuan & Otentisitas Karya Adat Serumpun
+                      <h2 className="text-xl font-serif font-bold tracking-tight text-[#FAF8F3]">
+                        Persetujuan &amp; Otentisitas Karya Adat Serumpun
                       </h2>
-                      <p className="text-xs text-slate-405 max-w-3xl leading-relaxed">
-                        Tinjau kiriman produk pusaka budaya terbaru dari sanggar kerajinan adat Sulawesi Selatan. Pastikan keaslian nilai fisik, ornamen tradisi, serta korelasi filosofi sebelum disetujui tampil di galeri publik.
+                      <p className="text-xs text-[#E5EFED]/80 max-w-3xl leading-relaxed">
+                        Tinjau kiriman produk pusaka budaya terbaru dari sanggar kerajinan adat Sulawesi Selatan sebelum dirilis ke galeri publik.
                       </p>
                     </div>
 
                     {/* Curator Toggles */}
-                    <div className="flex bg-slate-800 p-1 rounded-xl text-xs font-semibold gap-1 shrink-0 self-stretch md:self-auto">
+                    <div className="flex bg-white/10 p-1 rounded-xl text-xs font-semibold gap-1 shrink-0 self-stretch md:self-auto border border-[#D7B463]/25">
                       <button
                         onClick={() => setCuratorTab('pending')}
-                        className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-all cursor-pointer text-[10.5px] ${curatorTab === 'pending' ? 'bg-teal-700 text-white shadow-sm font-bold' : 'text-slate-400 hover:text-white'}`}
+                        className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-all cursor-pointer text-[11px] whitespace-nowrap ${curatorTab === 'pending' ? 'bg-[#D7B463] text-[#0A2926] shadow-sm font-bold' : 'text-[#E5EFED]/80 hover:text-white'}`}
                       >
-                        🕒 Menunggu ({products.filter(p => p.status === 'pending').length})
+                        Menunggu ({products.filter(p => p.status === 'pending').length})
                       </button>
                       <button
                         onClick={() => setCuratorTab('history')}
-                        className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-all cursor-pointer text-[10.5px] ${curatorTab === 'history' ? 'bg-teal-700 text-white shadow-sm font-bold' : 'text-slate-400 hover:text-white'}`}
+                        className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-all cursor-pointer text-[11px] whitespace-nowrap ${curatorTab === 'history' ? 'bg-[#D7B463] text-[#0A2926] shadow-sm font-bold' : 'text-[#E5EFED]/80 hover:text-white'}`}
                       >
-                        ⭐ Riwayat ({products.filter(p => p.status === 'approved' || p.status === 'rejected').length})
+                        Riwayat ({products.filter(p => p.status === 'approved' || p.status === 'rejected').length})
                       </button>
                     </div>
                   </div>
@@ -1727,10 +1956,9 @@ export default function App() {
                     {curatorTab === 'pending' ? (
                       <div>
                         {products.filter(p => p.status === 'pending').length === 0 ? (
-                          <div className="py-10 text-center bg-slate-800/30 rounded-2xl border border-slate-800/60 p-4">
-                            <span className="text-2xl">🎉</span>
-                            <h4 className="text-xs font-bold text-slate-400 mt-2 font-serif">Semua Kiriman Karya Bersih & Terkurasi</h4>
-                            <p className="text-[11px] text-slate-500 mt-1 max-w-md mx-auto leading-relaxed">
+                          <div className="py-10 text-center bg-white/5 rounded-2xl border border-white/10 p-4">
+                            <h4 className="text-xs font-bold text-[#FAF8F3] font-serif">Semua Kiriman Karya Sudah Terkurasi</h4>
+                            <p className="text-[11px] text-[#E5EFED]/70 mt-1 max-w-md mx-auto leading-relaxed">
                               Tidak ada antrean pengajuan produk saat ini dari para pengrajin suku Toraja, Makassar, Bugis, maupun Mandar.
                             </p>
                           </div>
@@ -1742,44 +1970,42 @@ export default function App() {
                                 initial={{ opacity: 0, x: -5 }}
                                 animate={{ opacity: 1, x: 0 }}
                                 transition={{ delay: idx * 0.05 }}
-                                className="bg-slate-800/80 p-4 rounded-2xl border border-slate-800 flex flex-col lg:flex-row gap-5 items-start lg:items-center justify-between"
+                                className="bg-[#0A201E]/80 p-4 rounded-2xl border border-[#D7B463]/20 flex flex-col lg:flex-row gap-5 items-start lg:items-center justify-between"
                               >
                                 <div className="flex gap-4 items-start flex-1 min-w-0">
                                   <img
                                     src={p.image}
                                     alt={p.name}
-                                    className="w-16 h-16 rounded-xl object-cover border border-slate-700 shrink-0 shadow-md"
+                                    className="w-16 h-16 rounded-xl object-cover border border-[#D7B463]/25 shrink-0 shadow-md"
                                     referrerPolicy="no-referrer"
                                   />
                                   <div className="space-y-1 min-w-0 flex-1">
-                                    <div className="flex items-center gap-2 flex-wrap">
-                                      <span className="text-[10px] font-bold text-amber-400 bg-amber-400/10 px-2 py-0.5 rounded-md border border-amber-400/25 uppercase tracking-wider font-mono">
-                                        Suku {p.culture}
-                                      </span>
-                                      <span className="text-[11px] font-mono text-teal-400 font-extrabold">{p.price}</span>
+                                    <div className="flex items-center gap-2 text-xs">
+                                      <span className="font-bold text-[#D7B463]">Suku {p.culture}</span>
+                                      <span aria-hidden="true" className="text-[#E5EFED]/40">·</span>
+                                      <span className="tabular-nums text-[#9ED4C8] font-extrabold">{p.price}</span>
                                     </div>
-                                    <h4 className="text-sm font-bold text-slate-100 font-serif leading-tight">{p.name}</h4>
-                                    <p className="text-[11.5px] text-slate-300 leading-normal line-clamp-2">{p.description}</p>
-                                    <div className="bg-slate-900/60 p-2.5 rounded-xl text-[10.5px] border border-slate-800 text-amber-100/90 leading-relaxed mt-1 flex items-start gap-1.5">
-                                      <span className="font-bold shrink-0 text-amber-400">📜 Filosofi Adat:</span>
-                                      <span className="italic font-sans">{p.philosophy || "Belum dicantumkan kesaksian sejarah kerajinan."}</span>
+                                    <h4 className="text-sm font-bold text-[#FAF8F3] font-serif leading-tight">{p.name}</h4>
+                                    <p className="text-xs text-[#E5EFED]/80 leading-normal line-clamp-2">{p.description}</p>
+                                    <div className="bg-[#071816]/80 p-2.5 rounded-xl text-[11px] border border-white/10 text-[#F7EFDB]/90 leading-relaxed mt-1">
+                                      <span className="font-bold text-[#D7B463]">Filosofi Adat: </span>
+                                      <span className="italic">{p.philosophy || "Belum dicantumkan kesaksian sejarah kerajinan."}</span>
                                     </div>
                                   </div>
                                 </div>
 
-                                {/* Decision Actions Container */}
                                 <div className="flex sm:flex-row gap-2 shrink-0 w-full lg:w-auto">
                                   <button
                                     onClick={() => handleCurateProduct(p.id, 'reject')}
-                                    className="flex-1 sm:flex-none uppercase tracking-widest text-[10px] font-bold border border-rose-500/30 text-rose-300 bg-rose-500/10 hover:bg-rose-500/20 px-4 py-2.5 rounded-xl transition-all cursor-pointer active:scale-95 text-center"
+                                    className="flex-1 sm:flex-none text-[11px] font-bold border border-[#9E3F44]/40 text-[#F7DFDF] bg-[#7C3238]/30 hover:bg-[#7C3238]/50 px-4 py-2.5 rounded-xl transition-all cursor-pointer active:scale-95 text-center"
                                   >
-                                    ✕ Tolak
+                                    Tolak
                                   </button>
                                   <button
                                     onClick={() => handleCurateProduct(p.id, 'approve')}
-                                    className="flex-1 sm:flex-none uppercase tracking-widest text-[10px] font-extrabold text-slate-950 bg-teal-400 hover:bg-teal-300 px-5 py-2.5 rounded-xl transition-all shadow-md shadow-teal-900/20 cursor-pointer active:scale-95 text-center flex items-center justify-center gap-1"
+                                    className="flex-1 sm:flex-none text-[11px] font-extrabold text-[#0A2926] liquid-glass-gold hover:brightness-105 px-5 py-2.5 rounded-xl transition-all shadow-md cursor-pointer active:scale-95 text-center"
                                   >
-                                    ✔ Setujui Produk
+                                    Setujui Produk
                                   </button>
                                 </div>
                               </motion.div>
@@ -1790,43 +2016,43 @@ export default function App() {
                     ) : (
                       <div className="space-y-3">
                         {products.filter(p => p.status === 'approved' || p.status === 'rejected').length === 0 ? (
-                          <div className="py-10 text-center bg-slate-850/30 rounded-2xl border border-slate-800/60 p-4">
-                            <p className="text-xs text-slate-500">Belum ada karya seni yang dinilai sejauh ini.</p>
+                          <div className="py-10 text-center bg-white/5 rounded-2xl border border-white/10 p-4">
+                            <p className="text-xs text-[#E5EFED]/70">Belum ada karya seni yang dinilai sejauh ini.</p>
                           </div>
                         ) : (
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                             {products.filter(p => p.status === 'approved' || p.status === 'rejected').map(p => (
                               <div
                                 key={p.id}
-                                className="bg-slate-850/40 p-3 rounded-2xl border border-slate-805 flex items-center justify-between gap-3"
+                                className="bg-[#0A201E]/80 p-3 rounded-2xl border border-[#D7B463]/20 flex items-center justify-between gap-3"
                               >
                                 <div className="flex items-center gap-3 min-w-0">
                                   <img
                                     src={p.image}
                                     alt={p.name}
-                                    className="w-10 h-10 rounded-lg object-cover border border-slate-700 shrink-0"
+                                    className="w-10 h-10 rounded-lg object-cover border border-white/20 shrink-0"
                                     referrerPolicy="no-referrer"
                                   />
                                   <div className="min-w-0">
-                                    <h5 className="text-[11.5px] font-bold text-slate-200 truncate leading-tight font-serif">{p.name}</h5>
-                                    <span className="text-[9px] text-slate-400 uppercase tracking-widest font-mono">Suku {p.culture}</span>
+                                    <h5 className="text-xs font-bold text-[#FAF8F3] truncate leading-tight font-serif">{p.name}</h5>
+                                    <span className="text-[10px] text-[#E5EFED]/70">Suku {p.culture}</span>
                                   </div>
                                 </div>
 
                                 <div className="flex items-center gap-2 shrink-0">
-                                  <span className={`px-2 py-0.5 rounded-md text-[9px] font-extrabold uppercase ${
-                                    p.status === 'approved' ? 'bg-teal-500/10 text-teal-400 border border-teal-500/20' : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
+                                  <span className={`text-[10px] font-bold ${
+                                    p.status === 'approved' ? 'text-[#9ED4C8]' : 'text-[#F0B3B6]'
                                   }`}>
-                                    {p.status === 'approved' ? '✔ Disetujui' : '✕ Ditolak'}
+                                    {p.status === 'approved' ? 'Disetujui' : 'Ditolak'}
                                   </span>
                                   <button
                                     onClick={() => {
                                       setProducts(prev => prev.map(item => item.id === p.id ? { ...item, status: 'pending' } : item));
                                     }}
-                                    className="px-2 py-1.5 rounded-lg border border-slate-700 hover:bg-slate-800 text-slate-405 hover:text-white transition-colors cursor-pointer text-[9.5px] font-bold font-mono"
+                                    className="px-2.5 py-1.5 rounded-lg border border-white/20 hover:bg-white/10 text-[#FAF8F3] transition-colors cursor-pointer text-[10px] font-bold"
                                     title="Evaluasi Ulang"
                                   >
-                                    🔄 Review
+                                    Review
                                   </button>
                                 </div>
                               </div>
@@ -1842,28 +2068,28 @@ export default function App() {
               <CultureCategories activeCategory={categoryFilter} onSelectCategory={setCategoryFilter} />
               
               {/* Product Grid Area */}
-              <div className="mb-6">
-                <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-2.5 mb-6 border-b border-slate-100/80 pb-4">
+              <div id="katalog-pilihan" className="mb-10 scroll-mt-24">
+                <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-2 mb-6 border-b border-[#D7B463]/20 pb-4">
                   <div>
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <h3 className="text-base sm:text-lg font-bold text-slate-850 font-serif leading-tight">
-                        Koleksi Pilihan {categoryFilter !== 'all' ? `Adat ${categoryFilter.toUpperCase()}` : ''}
+                    <div className="flex items-center gap-2.5 flex-wrap">
+                      <h3 className="text-lg sm:text-xl font-bold text-[#10423E] font-serif leading-tight">
+                        Koleksi Pilihan {categoryFilter !== 'all' ? `Adat ${categoryFilter.charAt(0).toUpperCase() + categoryFilter.slice(1)}` : ''}
                       </h3>
-                      <span className="bg-teal-50 text-teal-800 border border-teal-100/80 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold tracking-wide shrink-0 whitespace-nowrap shadow-xs">
-                        {filteredProducts.length} Produk
+                      <span className="text-xs text-[#5C6F6B] font-semibold tabular-nums">
+                        · {filteredProducts.length} Karya
                       </span>
                     </div>
-                    <p className="text-[11px] text-slate-400 mt-1 leading-normal">Warisan peradaban dengan kualitas konstruksi modern premium</p>
+                    <p className="text-xs text-[#5C6F6B] mt-1">Warisan peradaban dengan kualitas konstruksi modern premium</p>
                   </div>
                 </div>
                 
-                {/* Fully Fluid Responsive Grid */}
+                {/* Responsive Liquid Glass Grid */}
                 {filteredProducts.length === 0 ? (
-                  <div className="py-20 text-center bg-slate-50 rounded-3xl border border-slate-100 p-6">
-                    <p className="text-slate-400 text-sm font-semibold">Tidak ada produk warisan yang cocok dengan "{searchQuery}"</p>
+                  <div className="py-16 text-center liquid-glass rounded-3xl p-6">
+                    <p className="text-[#445754] text-sm font-semibold">Tidak ada produk warisan yang cocok dengan "{searchQuery}"</p>
                     <button 
                       onClick={() => { setSearchQuery(''); setCategoryFilter('all'); }}
-                      className="mt-3 bg-teal-600 font-bold px-4 py-2 rounded-full text-white text-xs hover:bg-teal-700 transition-colors"
+                      className="mt-4 liquid-glass-teal font-bold px-5 py-2.5 rounded-full text-[#FAF8F3] text-xs hover:brightness-110 transition-all cursor-pointer"
                     >
                       Buka Semua Koleksi
                     </button>
@@ -1888,6 +2114,20 @@ export default function App() {
                   </div>
                 )}
               </div>
+
+              {/* Clean Footer */}
+              <footer className="liquid-glass-subtle rounded-2xl px-6 py-4 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-[#445754]">
+                <p className="font-serif font-semibold text-[#10423E]">Balla AR — Galeri Furnitur Warisan Sulawesi Selatan</p>
+                <div className="flex items-center gap-4">
+                  <button onClick={() => setIsHeritageModalOpen(true)} className="hover:text-[#13524D] font-medium cursor-pointer transition-colors">
+                    Kamus Budaya
+                  </button>
+                  <span aria-hidden="true" className="text-[#D7B463]/60">·</span>
+                  <button onClick={() => setIsProfileOpen(true)} className="hover:text-[#13524D] font-medium cursor-pointer transition-colors">
+                    Akun &amp; Mitra Sanggar
+                  </button>
+                </div>
+              </footer>
             </main>
           </motion.div>
         )}
@@ -1967,72 +2207,75 @@ export default function App() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setIsNotificationsOpen(false)}
-              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+              className="absolute inset-0 bg-[#0A2926]/45 backdrop-blur-md"
             />
-            <div className="absolute inset-y-0 right-0 max-w-full flex pl-10">
+            <div className="absolute inset-y-0 right-0 max-w-full flex pl-8 sm:pl-10">
               <motion.div
                 initial={{ x: '100%' }}
                 animate={{ x: 0 }}
                 exit={{ x: '100%' }}
-                transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-                className="w-screen max-w-sm bg-white shadow-2xl flex flex-col h-full"
+                transition={{ type: 'spring', damping: 28, stiffness: 260 }}
+                className="w-screen max-w-sm liquid-glass border-l border-white/85 shadow-2xl flex flex-col h-full"
               >
-                <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-teal-950 text-white">
-                  <div className="flex items-center gap-2">
-                    <Bell size={20} className="text-teal-400" />
+                <div className="p-6 border-b border-[#D7B463]/20 flex items-center justify-between liquid-glass-dark text-[#FAF8F3]">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-xl bg-[#D7B463]/15 border border-[#D7B463]/30 flex items-center justify-center text-[#D7B463]">
+                      <Bell size={18} />
+                    </div>
                     <div>
-                      <h2 className="text-sm font-bold font-serif text-white">Pusat Informasi</h2>
-                      <p className="text-[10px] text-teal-300">Pembaruan & Diskon</p>
+                      <h2 className="text-sm font-bold font-serif text-[#FAF8F3]">Pusat Informasi</h2>
+                      <p className="text-[11px] text-[#D7B463]/85">Pembaruan &amp; Diskon</p>
                     </div>
                   </div>
                   <button 
                     onClick={() => setIsNotificationsOpen(false)}
-                    className="p-1 rounded-full hover:bg-white/10 text-white pointer-events-auto cursor-pointer"
+                    aria-label="Tutup pusat informasi"
+                    className="w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 border border-white/15 flex items-center justify-center text-[#FAF8F3] cursor-pointer"
                   >
-                    <X size={18} />
+                    <X size={17} />
                   </button>
                 </div>
 
                 {/* Filter Tabs for Notifications Center */}
-                <div className="flex gap-2 p-3 bg-slate-100/50 border-b border-slate-100 shrink-0">
+                <div className="flex gap-2 p-3 bg-[#FAF8F3]/60 backdrop-blur-md border-b border-[#D7B463]/20 shrink-0">
                   <button 
                     onClick={() => setShowOnlyUnread(true)}
-                    className={`flex-1 text-center py-2 rounded-xl text-[11px] font-bold transition-all cursor-pointer ${
+                    className={`flex-1 text-center py-2 rounded-xl text-[11px] font-bold transition-all cursor-pointer tabular-nums ${
                       showOnlyUnread 
-                        ? 'bg-teal-900 text-white shadow-sm' 
-                        : 'bg-white text-slate-500 hover:text-slate-700 border border-slate-100'
+                        ? 'liquid-glass-teal text-[#FAF8F3] shadow-sm' 
+                        : 'liquid-glass-pill text-[#445754] hover:text-[#10423E]'
                     }`}
                   >
                     Belum Dibaca ({unreadCount})
                   </button>
                   <button 
                     onClick={() => setShowOnlyUnread(false)}
-                    className={`flex-1 text-center py-2 rounded-xl text-[11px] font-bold transition-all cursor-pointer ${
+                    className={`flex-1 text-center py-2 rounded-xl text-[11px] font-bold transition-all cursor-pointer tabular-nums ${
                       !showOnlyUnread 
-                        ? 'bg-teal-900 text-white shadow-sm' 
-                        : 'bg-white text-slate-500 hover:text-slate-700 border border-slate-100'
+                        ? 'liquid-glass-teal text-[#FAF8F3] shadow-sm' 
+                        : 'liquid-glass-pill text-[#445754] hover:text-[#10423E]'
                     }`}
                   >
                     Semua ({notifications.length})
                   </button>
                 </div>
 
-                <div className="flex-1 overflow-y-auto p-5 space-y-4 no-scrollbar bg-slate-50">
+                <div className="flex-1 overflow-y-auto p-5 space-y-3.5 no-scrollbar">
                   {showOnlyUnread && unreadCount > 0 && (
-                    <p className="text-[9px] text-slate-400 italic text-center pb-1">
-                      Menampilkan info baru. Klik "Tandai Sudah Dibaca" untuk mengarsipkannya.
+                    <p className="text-[10.5px] text-[#5C6F6B] text-center pb-1">
+                      Menampilkan info baru. Tandai sudah dibaca untuk mengarsipkan.
                     </p>
                   )}
                   
                   {((showOnlyUnread ? notifications.filter(n => n.unread) : notifications).length === 0) ? (
-                    <div className="flex flex-col items-center justify-center py-12 text-center text-slate-400 space-y-3.5">
-                      <div className="w-12 h-12 rounded-full bg-teal-50 flex items-center justify-center text-teal-600">
+                    <div className="flex flex-col items-center justify-center py-12 text-center text-[#5C6F6B] space-y-3.5">
+                      <div className="w-12 h-12 rounded-full liquid-glass-pill flex items-center justify-center text-[#13524D]">
                         <CheckCircle2 size={24} />
                       </div>
                       <div>
-                        <h4 className="text-xs font-bold text-slate-800">Semua Informasi Selesai Dibaca</h4>
-                        <p className="text-[10px] text-slate-400 mt-0.5 leading-relaxed max-w-[200px] mx-auto">
-                          Tidak ada notifikasi baru. Tekan opsi "Semua" untuk melihat kembali riwayat informasi.
+                        <h4 className="text-xs font-bold text-[#10423E]">Semua Informasi Selesai Dibaca</h4>
+                        <p className="text-[11px] text-[#5C6F6B] mt-1 leading-relaxed max-w-[210px] mx-auto">
+                          Tidak ada notifikasi baru. Tekan opsi "Semua" untuk melihat riwayat informasi.
                         </p>
                       </div>
                     </div>
@@ -2040,35 +2283,26 @@ export default function App() {
                     (showOnlyUnread ? notifications.filter(n => n.unread) : notifications).map((notif) => (
                       <div 
                         key={notif.id}
-                        className={`p-4 rounded-2xl border transition-all relative overflow-hidden bg-white ${
+                        className={`p-4 rounded-2xl transition-all relative overflow-hidden liquid-glass-card ${
                           notif.unread 
-                            ? 'border-slate-100 shadow-sm hover:border-slate-200' 
-                            : 'border-transparent opacity-60'
+                            ? 'opacity-100' 
+                            : 'opacity-65'
                         }`}
                       >
-                        {notif.unread && (
-                          <span className={`absolute top-0 left-0 bottom-0 w-1 ${
-                            notif.tagColor === 'teal' ? 'bg-teal-600' : notif.tagColor === 'amber' ? 'bg-amber-500' : 'bg-slate-400'
-                          }`} />
-                        )}
-                        
                         <div className="flex justify-between items-start gap-2">
-                          <span className={`text-[9px] font-bold uppercase tracking-widest block ${
+                          <span className={`text-[10px] font-bold block ${
                             notif.unread 
-                              ? notif.tagColor === 'teal' ? 'text-teal-600' : notif.tagColor === 'amber' ? 'text-amber-600' : 'text-slate-500'
-                              : 'text-slate-400'
+                              ? notif.tagColor === 'teal' ? 'text-[#13524D]' : notif.tagColor === 'amber' ? 'text-[#A87F2D]' : notif.tagColor === 'rose' ? 'text-[#9E3F44]' : 'text-[#445754]'
+                              : 'text-[#5C6F6B]'
                           }`}>
                             {notif.tag}
                           </span>
-                          {notif.unread && (
-                            <span className="w-1.5 h-1.5 rounded-full bg-rose-500 shrink-0 animate-pulse" />
-                          )}
                         </div>
                         
-                        <h4 className={`text-xs font-bold mt-1 ${notif.unread ? 'text-slate-800' : 'text-slate-500'}`}>
+                        <h4 className={`text-xs font-bold mt-1 ${notif.unread ? 'text-[#10423E]' : 'text-[#445754]'}`}>
                           {notif.title}
                         </h4>
-                        <p className={`text-[11px] leading-relaxed mt-1 ${notif.unread ? 'text-slate-500' : 'text-slate-500'}`}>
+                        <p className="text-[11px] leading-relaxed mt-1 text-[#445754]">
                           {notif.desc}
                         </p>
 
@@ -2079,7 +2313,7 @@ export default function App() {
                                 e.stopPropagation();
                                 setNotifications(prev => prev.map(n => n.id === notif.id ? { ...n, unread: false } : n));
                               }}
-                              className="text-[10px] font-bold text-teal-800 hover:text-teal-900 bg-teal-50 hover:bg-teal-100 px-3 py-1.5 rounded-xl transition-all cursor-pointer border border-teal-100 flex items-center gap-1.5 active:scale-95"
+                              className="text-[10.5px] font-bold text-[#10423E] bg-[#13524D]/10 hover:bg-[#13524D]/18 px-3 py-1.5 rounded-xl transition-all cursor-pointer border border-[#13524D]/20 flex items-center gap-1.5 active:scale-95"
                             >
                               <Check size={11} />
                               <span>Tandai Sudah Dibaca</span>
@@ -2090,9 +2324,9 @@ export default function App() {
                                 e.stopPropagation();
                                 setNotifications(prev => prev.map(n => n.id === notif.id ? { ...n, unread: true } : n));
                               }}
-                              className="text-[10px] font-bold text-slate-500 hover:text-slate-700 bg-slate-50 hover:bg-slate-100 px-3 py-1.5 rounded-xl transition-all cursor-pointer border border-slate-100 flex items-center gap-1.5 active:scale-95"
+                              className="text-[10.5px] font-bold text-[#445754] hover:text-[#10423E] liquid-glass-pill px-3 py-1.5 rounded-xl transition-all cursor-pointer flex items-center gap-1.5 active:scale-95"
                             >
-                              <span>Belum Dibaca</span>
+                              <span>Tandai Belum Dibaca</span>
                             </button>
                           )}
                         </div>
@@ -2101,13 +2335,13 @@ export default function App() {
                   )}
                 </div>
 
-                <div className="p-4 bg-slate-50 border-t border-slate-100 text-center">
+                <div className="p-4 bg-[#FAF8F3]/65 backdrop-blur-md border-t border-[#D7B463]/20 text-center">
                   <button 
                     disabled={unreadCount === 0}
                     onClick={() => {
                       setNotifications(prev => prev.map(n => ({ ...n, unread: false })));
                     }}
-                    className="w-full py-2.5 bg-teal-950 hover:bg-teal-900 text-white disabled:bg-slate-200 disabled:text-slate-400 font-bold transition-all text-xs rounded-full pointer-events-auto cursor-pointer"
+                    className="w-full py-2.5 liquid-glass-teal text-[#FAF8F3] disabled:opacity-40 font-bold transition-all text-xs rounded-full pointer-events-auto cursor-pointer"
                   >
                     Tandai Semua Sudah Dibaca
                   </button>

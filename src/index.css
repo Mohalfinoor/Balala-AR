@@ -1,29 +1,193 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,700;1,400&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,600;0,700;1,400;1,600&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
 @import "tailwindcss";
 
 @theme {
-  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
-  --font-serif: "Playfair Display", serif;
-  
-  --color-teal-warm: #0D9488;
-  --color-teal-dark: #134E4A;
-  --color-teal-light: #F0FDFA;
+  --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-serif: "Playfair Display", Georgia, serif;
+
+  /* Balla AR Logo Identity Palette: Heritage Jade & Antique Champagne Gold */
+  --color-jade-950: #0A2926;
+  --color-jade-900: #10423E;
+  --color-jade-800: #13524D;
+  --color-jade-700: #1B6861;
+  --color-jade-600: #247B73;
+  --color-jade-100: #E5EFED;
+  --color-jade-50: #F2F7F6;
+
+  --color-gold-600: #A87F2D;
+  --color-gold-500: #C59B42;
+  --color-gold-400: #D7B463;
+  --color-gold-100: #F7EFDB;
+
+  --color-silk-50: #FAF8F3;
+  --color-silk-100: #F4F0E8;
+  --color-silk-200: #EAE3D5;
 }
 
-body {
-  @apply font-sans bg-white text-slate-900;
-  -webkit-tap-highlight-color: transparent;
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
+  html, body, #root {
+    min-height: 100%;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+  }
+
+  body {
+    @apply font-sans;
+    color: #162624;
+    background-color: #F4F1EA;
+    -webkit-tap-highlight-color: transparent;
+  }
 }
 
-html {
-  scroll-behavior: smooth;
+/* ==========================================================================
+   LIQUID GLASS DESIGN SYSTEM — Heritage Jade & Champagne Silk
+   Soothing, eye-friendly refractive surfaces aligned with the Balla AR logo
+   ========================================================================== */
+
+.liquid-canvas {
+  background-color: #F4F1EA;
+  background-image:
+    radial-gradient(at 14% 6%, rgba(19, 82, 77, 0.11) 0px, transparent 50%),
+    radial-gradient(at 88% 12%, rgba(197, 155, 66, 0.12) 0px, transparent 48%),
+    radial-gradient(at 78% 74%, rgba(27, 104, 97, 0.08) 0px, transparent 52%),
+    radial-gradient(at 16% 84%, rgba(180, 133, 50, 0.08) 0px, transparent 50%);
 }
 
-html, body, #root {
-  height: 100%;
-  width: 100%;
-  margin: 0;
-  padding: 0;
+.liquid-glass {
+  background: linear-gradient(
+    145deg,
+    rgba(255, 253, 249, 0.82) 0%,
+    rgba(249, 246, 239, 0.56) 100%
+  );
+  backdrop-filter: blur(24px) saturate(165%);
+  -webkit-backdrop-filter: blur(24px) saturate(165%);
+  border: 1px solid rgba(255, 255, 255, 0.85);
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, 0.96),
+    inset 0 -1px 1px rgba(16, 66, 62, 0.04),
+    0 12px 32px -12px rgba(16, 66, 62, 0.10);
+}
+
+.liquid-glass-subtle {
+  background: linear-gradient(
+    145deg,
+    rgba(255, 253, 249, 0.68) 0%,
+    rgba(246, 242, 234, 0.44) 100%
+  );
+  backdrop-filter: blur(18px) saturate(155%);
+  -webkit-backdrop-filter: blur(18px) saturate(155%);
+  border: 1px solid rgba(255, 255, 255, 0.78);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.90),
+    0 8px 24px -10px rgba(16, 66, 62, 0.07);
+}
+
+.liquid-glass-card {
+  position: relative;
+  background: linear-gradient(
+    155deg,
+    rgba(255, 254, 251, 0.88) 0%,
+    rgba(250, 247, 240, 0.62) 100%
+  );
+  backdrop-filter: blur(20px) saturate(165%);
+  -webkit-backdrop-filter: blur(20px) saturate(165%);
+  border: 1px solid rgba(255, 255, 255, 0.88);
+  box-shadow:
+    inset 0 1.5px 1px rgba(255, 255, 255, 0.98),
+    inset 0 -1px 1px rgba(197, 155, 66, 0.06),
+    0 10px 28px -12px rgba(16, 66, 62, 0.09);
+  transition:
+    transform 180ms cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 180ms cubic-bezier(0.16, 1, 0.3, 1),
+    border-color 180ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.liquid-glass-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(215, 180, 99, 0.45);
+  box-shadow:
+    inset 0 1.5px 1px rgba(255, 255, 255, 1),
+    inset 0 -1px 1px rgba(197, 155, 66, 0.12),
+    0 18px 36px -14px rgba(16, 66, 62, 0.15);
+}
+
+.liquid-glass-pill {
+  background: linear-gradient(
+    140deg,
+    rgba(255, 253, 249, 0.88) 0%,
+    rgba(247, 243, 235, 0.64) 100%
+  );
+  backdrop-filter: blur(16px) saturate(165%);
+  -webkit-backdrop-filter: blur(16px) saturate(165%);
+  border: 1px solid rgba(255, 255, 255, 0.88);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.98),
+    0 4px 14px -4px rgba(16, 66, 62, 0.10);
+}
+
+.liquid-glass-teal {
+  background: linear-gradient(
+    145deg,
+    rgba(23, 92, 86, 0.94) 0%,
+    rgba(14, 62, 58, 0.96) 100%
+  );
+  backdrop-filter: blur(16px) saturate(170%);
+  -webkit-backdrop-filter: blur(16px) saturate(170%);
+  border: 1px solid rgba(215, 180, 99, 0.38);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.28),
+    0 8px 20px -6px rgba(14, 62, 58, 0.32);
+}
+
+.liquid-glass-gold {
+  background: linear-gradient(
+    145deg,
+    rgba(205, 164, 78, 0.95) 0%,
+    rgba(168, 127, 45, 0.95) 100%
+  );
+  backdrop-filter: blur(16px) saturate(165%);
+  -webkit-backdrop-filter: blur(16px) saturate(165%);
+  border: 1px solid rgba(255, 248, 225, 0.52);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 252, 240, 0.55),
+    0 8px 20px -6px rgba(168, 127, 45, 0.28);
+}
+
+.liquid-glass-dark {
+  background: linear-gradient(
+    145deg,
+    rgba(14, 46, 43, 0.88) 0%,
+    rgba(10, 32, 30, 0.84) 100%
+  );
+  backdrop-filter: blur(24px) saturate(170%);
+  -webkit-backdrop-filter: blur(24px) saturate(170%);
+  border: 1px solid rgba(215, 180, 99, 0.24);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 250, 235, 0.16),
+    0 16px 40px -12px rgba(8, 26, 24, 0.45);
+}
+
+.liquid-glass-input {
+  background: rgba(255, 253, 248, 0.72);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.86);
+  box-shadow:
+    inset 0 1px 2px rgba(16, 66, 62, 0.04),
+    0 1px 0 rgba(255, 255, 255, 0.85);
+}
+
+.liquid-glass-input:focus {
+  background: rgba(255, 254, 251, 0.92);
+  border-color: rgba(197, 155, 66, 0.55);
+  box-shadow:
+    0 0 0 3px rgba(19, 82, 77, 0.10),
+    inset 0 1px 2px rgba(16, 66, 62, 0.03);
 }
 
 .no-scrollbar::-webkit-scrollbar {
@@ -34,10 +198,23 @@ html, body, #root {
   scrollbar-width: none;
 }
 
-@keyframes spin-slow {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+@keyframes liquid-drift {
+  0%, 100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(18px, -14px, 0) scale(1.04);
+  }
 }
-.animate-spin-slow {
-  animation: spin-slow 8s linear infinite;
+
+.animate-liquid-drift {
+  animation: liquid-drift 18s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-liquid-drift,
+  .liquid-glass-card {
+    animation: none !important;
+    transition: none !important;
+  }
 }
