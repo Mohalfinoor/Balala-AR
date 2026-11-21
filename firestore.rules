@@ -1,0 +1,369 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global Safety Net (Default-Deny)
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Core Primitives
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerifiedSignedIn() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    // Strict Admin Check: ONLY verified wirabuanamohalfinoor@gmail.com
+    function isPlatformAdmin() {
+      return isVerifiedSignedIn() &&
+        request.auth.token.email == 'wirabuanamohalfinoor@gmail.com';
+    }
+
+    // Validation Helpers
+    function isValidMerchantApplication(data) {
+      return data.keys().hasAll([
+          'id',
+          'applicantUid',
+          'applicantName',
+          'applicantEmail',
+          'storeName',
+          'culture',
+          'address',
+          'bio',
+          'status',
+          'createdAt',
+          'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'id',
+          'applicantUid',
+          'applicantName',
+          'applicantEmail',
+          'storeName',
+          'culture',
+          'address',
+          'bio',
+          'whatsapp',
+          'commissionRate',
+          'submittedAt',
+          'status',
+          'createdAt',
+          'updatedAt'
+        ]) &&
+        isValidId(data.id) &&
+        data.applicantUid is string && data.applicantUid.size() > 0 && data.applicantUid.size() <= 128 &&
+        data.applicantName is string && data.applicantName.size() > 0 && data.applicantName.size() <= 120 &&
+        data.applicantEmail is string && data.applicantEmail.size() > 0 && data.applicantEmail.size() <= 160 &&
+        data.storeName is string && data.storeName.size() > 0 && data.storeName.size() <= 140 &&
+        data.culture in ['Toraja', 'Bugis', 'Makassar', 'Mandar'] &&
+        data.address is string && data.address.size() > 0 && data.address.size() <= 250 &&
+        data.bio is string && data.bio.size() <= 600 &&
+        (!('whatsapp' in data) || (data.whatsapp is string && data.whatsapp.size() <= 30)) &&
+        (!('commissionRate' in data) || (data.commissionRate in [1, 2])) &&
+        (!('submittedAt' in data) || (data.submittedAt is string && data.submittedAt.size() <= 40)) &&
+        data.status in ['pending', 'approved', 'rejected'] &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidCatalogProduct(data) {
+      return data.keys().hasAll([
+          'id',
+          'name',
+          'price',
+          'image',
+          'culture',
+          'rating',
+          'description',
+          'philosophy',
+          'status',
+          'sellerUid',
+          'createdAt',
+          'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'id',
+          'name',
+          'price',
+          'image',
+          'culture',
+          'rating',
+          'description',
+          'philosophy',
+          'status',
+          'glbUrl',
+          'usdzUrl',
+          'dimensions',
+          'material',
+          'sellerUid',
+          'sellerName',
+          'revisionNote',
+          'culturalClassification',
+          'culturalSource',
+          'createdAt',
+          'updatedAt'
+        ]) &&
+        isValidId(data.id) &&
+        data.name is string && data.name.size() > 0 && data.name.size() <= 140 &&
+        data.price is string && data.price.size() > 0 && data.price.size() <= 40 &&
+        data.image is string && data.image.size() > 0 && data.image.size() <= 600000 &&
+        data.culture is string && data.culture.size() > 0 && data.culture.size() <= 40 &&
+        data.rating is number && data.rating >= 0 && data.rating <= 5 &&
+        data.description is string && data.description.size() <= 1500 &&
+        data.philosophy is string && data.philosophy.size() <= 1500 &&
+        data.status in ['pending', 'needs_revision', 'in_3d_process', 'approved', 'rejected'] &&
+        (!('glbUrl' in data) || (data.glbUrl is string && data.glbUrl.size() <= 2000)) &&
+        (!('usdzUrl' in data) || (data.usdzUrl is string && data.usdzUrl.size() <= 2000)) &&
+        (!('dimensions' in data) || (
+          data.dimensions is map &&
+          data.dimensions.keys().hasAll(['length', 'width', 'height']) &&
+          data.dimensions.keys().hasOnly(['length', 'width', 'height']) &&
+          data.dimensions.length is number &&
+          data.dimensions.width is number &&
+          data.dimensions.height is number
+        )) &&
+        (!('material' in data) || (data.material is string && data.material.size() <= 140)) &&
+        data.sellerUid is string && data.sellerUid.size() > 0 && data.sellerUid.size() <= 128 &&
+        (!('sellerName' in data) || (data.sellerName is string && data.sellerName.size() <= 140)) &&
+        (!('revisionNote' in data) || (data.revisionNote is string && data.revisionNote.size() <= 600)) &&
+        (!('culturalClassification' in data) || (data.culturalClassification in ['Tradisional', 'Adaptasi Kontemporer', 'Inspirasi Desain'])) &&
+        (!('culturalSource' in data) || (data.culturalSource is string && data.culturalSource.size() <= 240)) &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidPlatformOrder(data) {
+      return data.keys().hasAll([
+          'id',
+          'orderCode',
+          'productId',
+          'productName',
+          'productCulture',
+          'productImage',
+          'sellerName',
+          'buyerUid',
+          'buyerName',
+          'netPrice',
+          'shippingCost',
+          'commissionRate',
+          'gatewayVariableFee',
+          'status',
+          'createdAt',
+          'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'id',
+          'orderCode',
+          'productId',
+          'productName',
+          'productCulture',
+          'productImage',
+          'sellerUid',
+          'sellerName',
+          'buyerUid',
+          'buyerName',
+          'buyerPhone',
+          'shippingAddress',
+          'notes',
+          'netPrice',
+          'shippingCost',
+          'commissionRate',
+          'gatewayVariableFee',
+          'status',
+          'trackingNumber',
+          'createdAt',
+          'updatedAt'
+        ]) &&
+        isValidId(data.id) &&
+        data.orderCode is string && data.orderCode.size() > 0 && data.orderCode.size() <= 40 &&
+        data.productId is string && data.productId.size() > 0 && data.productId.size() <= 128 &&
+        data.productName is string && data.productName.size() > 0 && data.productName.size() <= 140 &&
+        data.productCulture is string && data.productCulture.size() > 0 && data.productCulture.size() <= 40 &&
+        data.productImage is string && data.productImage.size() > 0 && data.productImage.size() <= 600000 &&
+        (!('sellerUid' in data) || (data.sellerUid is string && data.sellerUid.size() <= 128)) &&
+        data.sellerName is string && data.sellerName.size() > 0 && data.sellerName.size() <= 140 &&
+        data.buyerUid is string && data.buyerUid.size() > 0 && data.buyerUid.size() <= 128 &&
+        data.buyerName is string && data.buyerName.size() > 0 && data.buyerName.size() <= 140 &&
+        (!('buyerPhone' in data) || (data.buyerPhone is string && data.buyerPhone.size() <= 30)) &&
+        (!('shippingAddress' in data) || (data.shippingAddress is string && data.shippingAddress.size() <= 300)) &&
+        (!('notes' in data) || (data.notes is string && data.notes.size() <= 300)) &&
+        data.netPrice is number && data.netPrice >= 0 &&
+        data.shippingCost is number && data.shippingCost >= 0 &&
+        data.commissionRate in [1, 2] &&
+        data.gatewayVariableFee is number && data.gatewayVariableFee >= 0 &&
+        data.status in ['awaiting_payment', 'paid', 'processing', 'shipped', 'completed', 'payout_settled'] &&
+        (!('trackingNumber' in data) || (data.trackingNumber is string && data.trackingNumber.size() <= 80)) &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    // 1. Merchant Applications Collection (PII protected)
+    match /merchantApplications/{applicationId} {
+      allow get: if isValidId(applicationId) && (
+        isPlatformAdmin() ||
+        (isVerifiedSignedIn() && (
+          existing().applicantUid == request.auth.uid ||
+          existing().applicantEmail == request.auth.token.email
+        ))
+      );
+      allow list: if isPlatformAdmin() || (
+        isVerifiedSignedIn() && (
+          existing().applicantUid == request.auth.uid ||
+          existing().applicantEmail == request.auth.token.email
+        )
+      );
+      allow create: if isValidId(applicationId) &&
+        isValidMerchantApplication(incoming()) &&
+        incoming().id == applicationId &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time && (
+          isPlatformAdmin() ||
+          (
+            isVerifiedSignedIn() &&
+            incoming().applicantUid == request.auth.uid &&
+            incoming().status == 'pending'
+          )
+        );
+      allow update: if isValidId(applicationId) &&
+        isValidMerchantApplication(incoming()) &&
+        incoming().id == existing().id &&
+        incoming().applicantUid == existing().applicantUid &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time && (
+          isPlatformAdmin() ||
+          (
+            isVerifiedSignedIn() &&
+            (existing().applicantUid == request.auth.uid || existing().applicantEmail == request.auth.token.email) &&
+            existing().status == 'rejected' &&
+            incoming().status == 'pending' &&
+            incoming().diff(existing()).affectedKeys().hasOnly([
+              'storeName',
+              'culture',
+              'address',
+              'bio',
+              'whatsapp',
+              'submittedAt',
+              'status',
+              'updatedAt'
+            ])
+          )
+        );
+      allow delete: if isValidId(applicationId) && isPlatformAdmin();
+    }
+
+    // 2. Catalog Products Collection
+    match /catalogProducts/{productId} {
+      allow get: if isValidId(productId) && (
+        existing().status == 'approved' ||
+        isPlatformAdmin() ||
+        (isVerifiedSignedIn() && existing().sellerUid == request.auth.uid)
+      );
+      allow list: if existing().status == 'approved' ||
+        isPlatformAdmin() ||
+        (isVerifiedSignedIn() && existing().sellerUid == request.auth.uid);
+      allow create: if isValidId(productId) &&
+        isValidCatalogProduct(incoming()) &&
+        incoming().id == productId &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time && (
+          isPlatformAdmin() ||
+          (
+            isVerifiedSignedIn() &&
+            incoming().sellerUid == request.auth.uid &&
+            incoming().status == 'pending'
+          )
+        );
+      allow update: if isValidId(productId) &&
+        isValidCatalogProduct(incoming()) &&
+        incoming().id == existing().id &&
+        incoming().sellerUid == existing().sellerUid &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time && (
+          isPlatformAdmin() ||
+          (
+            isVerifiedSignedIn() &&
+            existing().sellerUid == request.auth.uid &&
+            incoming().status == 'pending' &&
+            incoming().diff(existing()).affectedKeys().hasOnly([
+              'name',
+              'price',
+              'image',
+              'culture',
+              'description',
+              'philosophy',
+              'dimensions',
+              'material',
+              'culturalClassification',
+              'culturalSource',
+              'status',
+              'updatedAt'
+            ])
+          )
+        );
+      allow delete: if isValidId(productId) && (
+        isPlatformAdmin() ||
+        (isVerifiedSignedIn() && existing().sellerUid == request.auth.uid)
+      );
+    }
+
+    // 3. Platform Orders Collection (PII protected)
+    match /platformOrders/{orderId} {
+      allow get: if isValidId(orderId) && (
+        isPlatformAdmin() ||
+        (isVerifiedSignedIn() && (
+          existing().buyerUid == request.auth.uid ||
+          ('sellerUid' in existing() && existing().sellerUid == request.auth.uid)
+        ))
+      );
+      allow list: if isPlatformAdmin() || (
+        isVerifiedSignedIn() && (
+          existing().buyerUid == request.auth.uid ||
+          ('sellerUid' in existing() && existing().sellerUid == request.auth.uid)
+        )
+      );
+      allow create: if isValidId(orderId) &&
+        isValidPlatformOrder(incoming()) &&
+        incoming().id == orderId &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time && (
+          isPlatformAdmin() ||
+          (
+            isVerifiedSignedIn() &&
+            incoming().buyerUid == request.auth.uid &&
+            incoming().status == 'awaiting_payment'
+          )
+        );
+      allow update: if isValidId(orderId) &&
+        isValidPlatformOrder(incoming()) &&
+        incoming().id == existing().id &&
+        incoming().buyerUid == existing().buyerUid &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time && (
+          isPlatformAdmin() ||
+          (
+            isVerifiedSignedIn() &&
+            ('sellerUid' in existing()) &&
+            existing().sellerUid == request.auth.uid &&
+            existing().status in ['paid', 'processing'] &&
+            incoming().status in ['processing', 'shipped'] &&
+            incoming().diff(existing()).affectedKeys().hasOnly(['status', 'trackingNumber', 'updatedAt'])
+          )
+        );
+      allow delete: if isValidId(orderId) && isPlatformAdmin();
+    }
+  }
+}

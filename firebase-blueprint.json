@@ -1,0 +1,146 @@
+{
+  "entities": {
+    "MerchantApplication": {
+      "title": "MerchantApplication",
+      "description": "Real UMKM craftsman / gallery partnership application in Balla AR.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "applicantUid": { "type": "string", "maxLength": 128 },
+        "applicantName": { "type": "string", "maxLength": 120 },
+        "applicantEmail": { "type": "string", "format": "email", "maxLength": 160 },
+        "storeName": { "type": "string", "maxLength": 140 },
+        "culture": { "type": "string", "enum": ["Toraja", "Bugis", "Makassar", "Mandar"] },
+        "address": { "type": "string", "maxLength": 250 },
+        "bio": { "type": "string", "maxLength": 600 },
+        "whatsapp": { "type": "string", "maxLength": 30 },
+        "commissionRate": { "type": "number" },
+        "submittedAt": { "type": "string", "maxLength": 40 },
+        "status": { "type": "string", "enum": ["pending", "approved", "rejected"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "id",
+        "applicantUid",
+        "applicantName",
+        "applicantEmail",
+        "storeName",
+        "culture",
+        "address",
+        "bio",
+        "status",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "CatalogProduct": {
+      "title": "CatalogProduct",
+      "description": "Heritage furniture product submitted by sellers or curated by Admin Platform & Tim 3D.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "name": { "type": "string", "maxLength": 140 },
+        "price": { "type": "string", "maxLength": 40 },
+        "image": { "type": "string", "maxLength": 600000 },
+        "culture": { "type": "string", "maxLength": 40 },
+        "rating": { "type": "number" },
+        "description": { "type": "string", "maxLength": 1500 },
+        "philosophy": { "type": "string", "maxLength": 1500 },
+        "status": { "type": "string", "enum": ["pending", "needs_revision", "in_3d_process", "approved", "rejected"] },
+        "glbUrl": { "type": "string", "maxLength": 2000 },
+        "usdzUrl": { "type": "string", "maxLength": 2000 },
+        "dimensions": {
+          "type": "object",
+          "properties": {
+            "length": { "type": "number" },
+            "width": { "type": "number" },
+            "height": { "type": "number" }
+          }
+        },
+        "material": { "type": "string", "maxLength": 140 },
+        "sellerUid": { "type": "string", "maxLength": 128 },
+        "sellerName": { "type": "string", "maxLength": 140 },
+        "revisionNote": { "type": "string", "maxLength": 600 },
+        "culturalClassification": { "type": "string", "enum": ["Tradisional", "Adaptasi Kontemporer", "Inspirasi Desain"] },
+        "culturalSource": { "type": "string", "maxLength": 240 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "id",
+        "name",
+        "price",
+        "image",
+        "culture",
+        "rating",
+        "description",
+        "philosophy",
+        "status",
+        "sellerUid",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "PlatformOrder": {
+      "title": "PlatformOrder",
+      "description": "Real checkout order tracked by Admin Platform for escrow, shipping, and 1-2% commission settlement.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "orderCode": { "type": "string", "maxLength": 40 },
+        "productId": { "type": "string", "maxLength": 128 },
+        "productName": { "type": "string", "maxLength": 140 },
+        "productCulture": { "type": "string", "maxLength": 40 },
+        "productImage": { "type": "string", "maxLength": 600000 },
+        "sellerUid": { "type": "string", "maxLength": 128 },
+        "sellerName": { "type": "string", "maxLength": 140 },
+        "buyerUid": { "type": "string", "maxLength": 128 },
+        "buyerName": { "type": "string", "maxLength": 140 },
+        "buyerPhone": { "type": "string", "maxLength": 30 },
+        "shippingAddress": { "type": "string", "maxLength": 300 },
+        "notes": { "type": "string", "maxLength": 300 },
+        "netPrice": { "type": "number" },
+        "shippingCost": { "type": "number" },
+        "commissionRate": { "type": "number" },
+        "gatewayVariableFee": { "type": "number" },
+        "status": { "type": "string", "enum": ["awaiting_payment", "paid", "processing", "shipped", "completed", "payout_settled"] },
+        "trackingNumber": { "type": "string", "maxLength": 80 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "id",
+        "orderCode",
+        "productId",
+        "productName",
+        "productCulture",
+        "productImage",
+        "sellerName",
+        "buyerUid",
+        "buyerName",
+        "netPrice",
+        "shippingCost",
+        "commissionRate",
+        "gatewayVariableFee",
+        "status",
+        "createdAt",
+        "updatedAt"
+      ]
+    }
+  },
+  "firestore": {
+    "/merchantApplications/{applicationId}": {
+      "schema": { "$ref": "#/entities/MerchantApplication" },
+      "description": "Submitted UMKM craftsman partnership applications."
+    },
+    "/catalogProducts/{productId}": {
+      "schema": { "$ref": "#/entities/CatalogProduct" },
+      "description": "Submitted and curated heritage furniture catalog items with 3D/AR metadata."
+    },
+    "/platformOrders/{orderId}": {
+      "schema": { "$ref": "#/entities/PlatformOrder" },
+      "description": "Customer checkout orders tracked for escrow and commission settlement."
+    }
+  }
+}

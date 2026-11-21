@@ -17,6 +17,8 @@ interface AddProductModalProps {
     culture: string;
     description: string;
     philosophy: string;
+    material?: string;
+    dimensions?: { length: number; width: number; height: number };
   }) => void;
 }
 
@@ -52,6 +54,10 @@ export default function AddProductModal({
   const [priceNumber, setPriceNumber] = useState('');
   const [description, setDescription] = useState('');
   const [philosophy, setPhilosophy] = useState('');
+  const [material, setMaterial] = useState('');
+  const [dimLength, setDimLength] = useState('');
+  const [dimWidth, setDimWidth] = useState('');
+  const [dimHeight, setDimHeight] = useState('');
   const [imageSource, setImageSource] = useState<'upload' | 'preset' | 'url'>('preset');
   const [imageUrl, setImageUrl] = useState(PRESETS[0].url);
   const [uploadedBase64, setUploadedBase64] = useState('');
@@ -122,19 +128,31 @@ export default function AddProductModal({
       finalImage = imageUrl;
     }
 
+    const parsedL = parseInt(dimLength, 10) || 0;
+    const parsedW = parseInt(dimWidth, 10) || 0;
+    const parsedH = parseInt(dimHeight, 10) || 0;
+
     onAddProduct({
-      name,
+      name: name.trim(),
       price: getPriceFormatted(),
       image: finalImage,
       culture: productCulture,
-      description,
-      philosophy
+      description: description.trim(),
+      philosophy: philosophy.trim(),
+      ...(material.trim() ? { material: material.trim() } : {}),
+      ...(parsedL > 0 && parsedW > 0 && parsedH > 0
+        ? { dimensions: { length: parsedL, width: parsedW, height: parsedH } }
+        : {})
     });
 
     setName('');
     setPriceNumber('');
     setDescription('');
     setPhilosophy('');
+    setMaterial('');
+    setDimLength('');
+    setDimWidth('');
+    setDimHeight('');
     setUploadedBase64('');
     setImageUrl(PRESETS[0].url);
     setError('');
@@ -334,6 +352,50 @@ export default function AddProductModal({
                 className="w-full liquid-glass-input rounded-xl px-3.5 py-2.5 text-xs outline-none mt-1"
               />
             )}
+          </div>
+
+          {/* Material & Dimensions for 3D Modeling */}
+          <div className="space-y-2.5 pt-1">
+            <div className="space-y-1">
+              <label className="block text-[11px] font-semibold text-[#445754]">Material Utama (Opsional)</label>
+              <input
+                type="text"
+                placeholder="Contoh: Kayu Jati Sulawesi, Tenun Sutra Saqbe"
+                value={material}
+                onChange={(e) => setMaterial(e.target.value)}
+                className="w-full liquid-glass-input rounded-xl px-3.5 py-2 text-xs outline-none"
+              />
+            </div>
+
+            <div>
+              <label className="block text-[11px] font-semibold text-[#445754] mb-1">Dimensi Fisik cm — Panduan 3D (Opsional)</label>
+              <div className="grid grid-cols-3 gap-2">
+                <input
+                  type="number"
+                  min={0}
+                  placeholder="Panjang"
+                  value={dimLength}
+                  onChange={(e) => setDimLength(e.target.value)}
+                  className="w-full liquid-glass-input rounded-xl px-3 py-2 text-xs tabular-nums outline-none"
+                />
+                <input
+                  type="number"
+                  min={0}
+                  placeholder="Lebar"
+                  value={dimWidth}
+                  onChange={(e) => setDimWidth(e.target.value)}
+                  className="w-full liquid-glass-input rounded-xl px-3 py-2 text-xs tabular-nums outline-none"
+                />
+                <input
+                  type="number"
+                  min={0}
+                  placeholder="Tinggi"
+                  value={dimHeight}
+                  onChange={(e) => setDimHeight(e.target.value)}
+                  className="w-full liquid-glass-input rounded-xl px-3 py-2 text-xs tabular-nums outline-none"
+                />
+              </div>
+            </div>
           </div>
 
           {/* Description */}

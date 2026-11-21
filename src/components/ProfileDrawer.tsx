@@ -1,6 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
-import { signInWithGoogle, logout as firebaseLogout } from '../firebase';
+import { motion } from 'motion/react';
+import {
+  signInWithGoogle,
+  logout as firebaseLogout,
+  updateMerchantApplicationInDb
+} from '../firebase';
 import Logo from './Logo';
 import { 
   X, 
@@ -9,40 +13,36 @@ import {
   Gift, 
   ShieldAlert, 
   Globe, 
-  MapPin, 
   BadgeCheck, 
   Volume2, 
   Check, 
   Lock, 
   Store, 
-  Briefcase, 
-  LogIn, 
   LogOut,
   Sparkles
 } from 'lucide-react';
+
+import {
+  UserRole,
+  MerchantApplication,
+  isAuthorizedPlatformAdmin
+} from '../types/platform';
 
 interface ProfileDrawerProps {
   isOpen: boolean;
   onClose: () => void;
   favoritesCount: number;
   cartCount: number;
-  userRole: 'user' | 'admin' | 'curator';
-  setUserRole: (role: 'user' | 'admin' | 'curator') => void;
+  userRole: UserRole;
+  setUserRole: (role: UserRole) => void;
   adminCulture: string;
   setAdminCulture: (culture: string) => void;
   googleUser: { name: string; email: string; avatar: string; } | null;
   setGoogleUser: (user: { name: string; email: string; avatar: string; } | null) => void;
-}
-
-interface MerchantApplication {
-  id: string;
-  applicantName: string;
-  applicantEmail: string;
-  storeName: string;
-  culture: string;
-  address: string;
-  bio: string;
-  status: 'pending' | 'approved' | 'rejected';
+  applications?: MerchantApplication[];
+  setApplications?: React.Dispatch<React.SetStateAction<MerchantApplication[]>>;
+  onOpenPlatformAdmin?: (verifiedEmail?: string) => void;
+  onOpenMerchantRegistration?: () => void;
 }
 
 // Store helper display
@@ -80,7 +80,11 @@ export default function ProfileDrawer({
   adminCulture,
   setAdminCulture,
   googleUser,
-  setGoogleUser
+  setGoogleUser,
+  applications: externalApplications,
+  setApplications: setExternalApplications,
+  onOpenPlatformAdmin,
+  onOpenMerchantRegistration
 }: ProfileDrawerProps) {
   const [copiedVoucher, setCopiedVoucher] = useState<string | null>(null);
   const [language, setLanguage] = useState<'id' | 'en'>('id');
@@ -88,101 +92,67 @@ export default function ProfileDrawer({
 
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
-  // Profile fields filled automatically from Google
+  // Profile phone filled by real user
   const [customPhone, setCustomPhone] = useState(() => {
-    return localStorage.getItem('ballaar_profile_phone') || '0852-4412-3392';
+    const saved = localStorage.getItem('ballaar_profile_phone');
+    return saved && saved !== '0852-4412-3392' ? saved : '';
   });
 
-  // Register requests list with auto mock-ups for review
-  const [applications, setApplications] = useState<MerchantApplication[]>(() => {
+  // Fallback local applications state (starts empty—real applicants only)
+  const [localApplications, setLocalApplications] = useState<MerchantApplication[]>(() => {
     try {
       const saved = localStorage.getItem('ballaar_global_merchant_applications');
-      if (saved) return JSON.parse(saved);
-    } catch (e) {}
-
-    const defaults: MerchantApplication[] = [
-      {
-        id: 'app-1',
-        applicantName: 'Tamu Nusantara',
-        applicantEmail: 'tamu.nusantara@gmail.com',
-        storeName: 'Sutra Mandar Cantika',
-        culture: 'Mandar',
-        address: 'Polman, Sulawesi Barat',
-        bio: 'Penenun sutera Mandar tradisional bermotif Sureq Marasa klasik kelas premium.',
-        status: 'pending'
-      },
-      {
-        id: 'app-2',
-        applicantName: 'Nenek Cantika Toraja',
-        applicantEmail: 'cantika_toraja@gmail.com',
-        storeName: 'Ukir Toraja Lemo',
-        culture: 'Toraja',
-        address: 'Lemo, Kabupaten Tana Toraja',
-        bio: 'Pemahat miniatur tongkonan, kerajinan ukiran perisai kayu Lemo asli.',
-        status: 'pending'
+      if (saved) {
+        const parsed: MerchantApplication[] = JSON.parse(saved);
+        return parsed.filter(
+          a =>
+            a.applicantEmail !== 'tamu.nusantara@gmail.com' &&
+            a.applicantEmail !== 'cantika_toraja@gmail.com' &&
+            a.applicantEmail !== 'sanggar.toraja@ballaar.id'
+        );
       }
-    ];
-    try {
-      localStorage.setItem('ballaar_global_merchant_applications', JSON.stringify(defaults));
     } catch (e) {}
-    return defaults;
+    return [];
   });
 
-  // Sync current user's merchant status when googleUser changes or applications list updates
-  useEffect(() => {
-    if (googleUser) {
-      const myApp = applications.find(a => a.applicantEmail === googleUser.email);
-      if (myApp) {
-        const correspondingStatus = myApp.status === 'approved' ? 'approved' : myApp.status === 'rejected' ? 'none' : 'pending';
-        setMerchantStatus(correspondingStatus);
-        localStorage.setItem('ballaar_merchant_status', correspondingStatus);
-        if (myApp.status === 'approved') {
-          setMerchantStoreName(myApp.storeName);
-          setMerchantStoreCulture(myApp.culture);
-          setMerchantAddress(myApp.address);
-          setMerchantBio(myApp.bio);
-          localStorage.setItem('ballaar_merchant_store_name', myApp.storeName);
-          localStorage.setItem('ballaar_merchant_store_culture', myApp.culture);
-          localStorage.setItem('ballaar_merchant_address', myApp.address);
-          localStorage.setItem('ballaar_merchant_bio', myApp.bio);
-        }
-      } else {
-        // Fallback if no application found
-        const curStatus = (localStorage.getItem('ballaar_merchant_status') as 'none' | 'pending' | 'approved') || 'none';
-        setMerchantStatus(curStatus);
-      }
-    }
-  }, [googleUser, applications]);
+  const applications = externalApplications ?? localApplications;
+  const setApplications = setExternalApplications ?? setLocalApplications;
 
-  // Merchant Application States (mendaftar ke perusahaan agar dikonfirmasi menjadi penjual)
-  const [merchantStatus, setMerchantStatus] = useState<'none' | 'pending' | 'approved'>(() => {
-    return (localStorage.getItem('ballaar_merchant_status') as 'none' | 'pending' | 'approved') || 'none';
+  // Merchant Application Status (synced to show badge/label on compact button below logout)
+  const [merchantStatus, setMerchantStatus] = useState<'none' | 'pending' | 'approved' | 'rejected'>(() => {
+    return (localStorage.getItem('ballaar_merchant_status') as 'none' | 'pending' | 'approved' | 'rejected') || 'none';
   });
   const [merchantStoreName, setMerchantStoreName] = useState(() => {
     return localStorage.getItem('ballaar_merchant_store_name') || '';
   });
-  const [merchantStoreCulture, setMerchantStoreCulture] = useState(() => {
-    return localStorage.getItem('ballaar_merchant_store_culture') || 'Toraja';
-  });
-  const [merchantBio, setMerchantBio] = useState(() => {
-    return localStorage.getItem('ballaar_merchant_bio') || '';
-  });
-  const [merchantAddress, setMerchantAddress] = useState(() => {
-    return localStorage.getItem('ballaar_merchant_address') || '';
-  });
 
-  // Role selections
-  const [selectedLoginRole, setSelectedLoginRole] = useState<'user' | 'admin' | 'curator'>(userRole);
-  const [loginError, setLoginError] = useState('');
-  const [isLoginSuccessMsg, setIsLoginSuccessMsg] = useState(false);
+  const currentUserApp = googleUser
+    ? applications.find(a => a.applicantEmail.toLowerCase() === googleUser.email.toLowerCase()) || null
+    : null;
 
-  // Sync role selector when userRole changes from parent
+  // Sync current user's merchant status when googleUser changes or applications list updates
   useEffect(() => {
-    setSelectedLoginRole(userRole);
-  }, [userRole]);
+    if (!googleUser) return;
+    const myApp = applications.find(
+      a => a.applicantEmail.toLowerCase() === googleUser.email.toLowerCase()
+    );
+    if (myApp) {
+      setMerchantStatus(myApp.status);
+      localStorage.setItem('ballaar_merchant_status', myApp.status);
+      if (myApp.status === 'approved' || myApp.status === 'pending') {
+        setMerchantStoreName(myApp.storeName);
+        localStorage.setItem('ballaar_merchant_store_name', myApp.storeName);
+        localStorage.setItem('ballaar_merchant_store_culture', myApp.culture);
+        localStorage.setItem('ballaar_merchant_address', myApp.address);
+        localStorage.setItem('ballaar_merchant_bio', myApp.bio);
+      }
+    } else {
+      const curStatus = (localStorage.getItem('ballaar_merchant_status') as 'none' | 'pending' | 'approved' | 'rejected') || 'none';
+      setMerchantStatus(curStatus);
+    }
+  }, [googleUser, applications]);
 
-
-
+  const [actionNotice, setActionNotice] = useState<{ type: 'success' | 'info' | 'error'; text: string } | null>(null);
 
   if (!isOpen) return null;
 
@@ -200,6 +170,7 @@ export default function ProfileDrawer({
   // Google Sign-In using Firebase Auth
   const handleGoogleSignInClick = async () => {
     setIsGoogleLoading(true);
+    setActionNotice(null);
     try {
       const user = await signInWithGoogle();
       if (user) {
@@ -210,120 +181,24 @@ export default function ProfileDrawer({
         };
         setGoogleUser(loggedInUser);
         
-        // Auto initialize user role based on email context
-        if (loggedInUser.email === 'wirabuanamohalfinoor@gmail.com' || loggedInUser.email === 'mohalfinoorw@gmail.com') {
-          setUserRole('admin');
-          setSelectedLoginRole('admin');
+        // Strictly restrict Platform Admin & Tim BALALA access ONLY to wirabuanamohalfinoor@gmail.com
+        if (isAuthorizedPlatformAdmin(loggedInUser.email)) {
+          setUserRole('platform_admin');
+          onClose();
+          onOpenPlatformAdmin?.(loggedInUser.email);
         } else {
           setUserRole('user');
-          setSelectedLoginRole('user');
         }
       }
     } catch (err: any) {
       console.error("Login Error: ", err);
-      if (err.message && err.message.includes('auth/popup-blocked')) {
-        alert("Gagal melakukan login Google: Popup diblokir oleh peramban Anda. Mohon izinkan popup untuk situs ini.");
-      } else {
-        alert("Gagal melakukan login Google: " + (err.message || err));
-      }
+      const msg = err?.message && err.message.includes('auth/popup-blocked')
+        ? 'Popup login Google diblokir peramban. Mohon izinkan popup untuk situs ini.'
+        : `Gagal melakukan login Google: ${err?.message || 'Terjadi kendala koneksi.'}`;
+      setActionNotice({ type: 'error', text: msg });
     } finally {
       setIsGoogleLoading(false);
     }
-  };
-
-  const handlePerformRoleSwitch = (role: 'user' | 'admin' | 'curator') => {
-    setLoginError('');
-    if (role === 'admin') {
-      if (merchantStatus !== 'approved') {
-        setLoginError('Sandi admin dilewati. Anda harus mendaftarkan diri dahulu & dikonfirmasi oleh perusahaan.');
-        setSelectedLoginRole('admin');
-        return;
-      }
-      setUserRole('admin');
-      setAdminCulture(merchantStoreCulture);
-    } else if (role === 'curator') {
-      setUserRole('curator');
-    } else {
-      setUserRole('user');
-    }
-
-    setIsLoginSuccessMsg(true);
-    setTimeout(() => {
-      setIsLoginSuccessMsg(false);
-    }, 1500);
-  };
-
-  const handleRegisterMerchantSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoginError('');
-    if (!merchantStoreName.trim()) {
-      setLoginError('Nama Sanggar Adat / Toko wajib diisi.');
-      return;
-    }
-    if (!merchantAddress.trim()) {
-      setLoginError('Alamat Workshop / Sanggar wajib diisi.');
-      return;
-    }
-
-    setMerchantStatus('pending');
-    localStorage.setItem('ballaar_merchant_status', 'pending');
-    localStorage.setItem('ballaar_merchant_store_name', merchantStoreName);
-    localStorage.setItem('ballaar_merchant_store_culture', merchantStoreCulture);
-    localStorage.setItem('ballaar_merchant_bio', merchantBio);
-    localStorage.setItem('ballaar_merchant_address', merchantAddress);
-
-    // Save into shared database list as a pending request!
-    const newApp: MerchantApplication = {
-      id: 'app-' + Date.now(),
-      applicantName: googleUser?.name || 'Tamu Nusantara',
-      applicantEmail: googleUser?.email || 'tamu.nusantara@gmail.com',
-      storeName: merchantStoreName,
-      culture: merchantStoreCulture,
-      address: merchantAddress,
-      bio: merchantBio || 'Produksi benda hias nilai tinggi khas nusantara.',
-      status: 'pending'
-    };
-
-    const currentApps = [...applications.filter(a => a.applicantEmail !== newApp.applicantEmail), newApp];
-    setApplications(currentApps);
-    localStorage.setItem('ballaar_global_merchant_applications', JSON.stringify(currentApps));
-
-    setIsLoginSuccessMsg(true);
-    setTimeout(() => {
-      setIsLoginSuccessMsg(false);
-    }, 1500);
-  };
-
-  const handleSimulateCompanyApproval = () => {
-    setLoginError('');
-    setMerchantStatus('approved');
-    localStorage.setItem('ballaar_merchant_status', 'approved');
-    
-    // Set active parent role configurations
-    setUserRole('admin');
-    setAdminCulture(merchantStoreCulture);
-    setSelectedLoginRole('admin');
-
-    // Also update/sync the global applications list
-    const newApp: MerchantApplication = {
-      id: 'app-' + Date.now(),
-      applicantName: googleUser?.name || 'Tamu Nusantara',
-      applicantEmail: googleUser?.email || 'tamu.nusantara@gmail.com',
-      storeName: merchantStoreName || getStoreName(merchantStoreCulture),
-      culture: merchantStoreCulture,
-      address: merchantAddress || 'Makassar, Sulawesi Selatan',
-      bio: merchantBio || 'Eksportir & Pengrajin terverifikasi',
-      status: 'approved'
-    };
-
-    const currentApps = [...applications.filter(a => a.applicantEmail !== newApp.applicantEmail), newApp];
-    setApplications(currentApps);
-    localStorage.setItem('ballaar_global_merchant_applications', JSON.stringify(currentApps));
-    
-    setIsLoginSuccessMsg(true);
-    setTimeout(() => {
-      setIsLoginSuccessMsg(false);
-    }, 1500);
   };
 
   const handleApproveApplication = (appId: string) => {
@@ -337,16 +212,13 @@ export default function ProfileDrawer({
 
     setApplications(updated);
     localStorage.setItem('ballaar_global_merchant_applications', JSON.stringify(updated));
+    updateMerchantApplicationInDb(appId, { status: 'approved' });
 
     if (target) {
-      // If the approved user's email matches currently logged in user, apply it live!
       if (googleUser && target.applicantEmail === googleUser.email) {
         setMerchantStatus('approved');
         localStorage.setItem('ballaar_merchant_status', 'approved');
         setMerchantStoreName(target.storeName);
-        setMerchantStoreCulture(target.culture);
-        setMerchantAddress(target.address);
-        setMerchantBio(target.bio);
         localStorage.setItem('ballaar_merchant_store_name', target.storeName);
         localStorage.setItem('ballaar_merchant_store_culture', target.culture);
         localStorage.setItem('ballaar_merchant_address', target.address);
@@ -354,9 +226,11 @@ export default function ProfileDrawer({
         
         setUserRole('admin');
         setAdminCulture(target.culture);
-        setSelectedLoginRole('admin');
       } else {
-        alert(`SUKSES: Pendaftaran toko "${target.storeName}" oleh ${target.applicantName} (${target.applicantEmail}) telah berhasil Anda ACC / SETUJUI.`);
+        setActionNotice({
+          type: 'success',
+          text: `Pendaftaran toko "${target.storeName}" (${target.applicantName}) disetujui.`
+        });
       }
     }
   };
@@ -372,13 +246,17 @@ export default function ProfileDrawer({
 
     setApplications(updated);
     localStorage.setItem('ballaar_global_merchant_applications', JSON.stringify(updated));
+    updateMerchantApplicationInDb(appId, { status: 'rejected' });
 
     if (target) {
-      if (googleUser && target.applicantEmail === googleUser.email) {
-        setMerchantStatus('none');
-        localStorage.setItem('ballaar_merchant_status', 'none');
+      if (googleUser && target.applicantEmail.toLowerCase() === googleUser.email.toLowerCase()) {
+        setMerchantStatus('rejected');
+        localStorage.setItem('ballaar_merchant_status', 'rejected');
       } else {
-        alert(`INFO: Pendaftaran toko ${target.storeName} telah ditangguhkan/ditolak.`);
+        setActionNotice({
+          type: 'info',
+          text: `Pendaftaran toko "${target.storeName}" ditolak / ditangguhkan.`
+        });
       }
     }
   };
@@ -387,9 +265,6 @@ export default function ProfileDrawer({
     firebaseLogout().catch(err => console.error("Error signing out: ", err));
     setGoogleUser(null);
     setUserRole('user');
-    setSelectedLoginRole('user');
-    setIsLoginSuccessMsg(false);
-    setLoginError('');
     setMerchantStatus('none');
     setMerchantStoreName('');
     localStorage.removeItem('ballaar_google_user');
@@ -423,7 +298,7 @@ export default function ProfileDrawer({
           <div className={`p-6 text-[#FAF8F3] relative transition-colors duration-300 backdrop-blur-xl ${
             !googleUser 
               ? 'bg-gradient-to-br from-[#10423E]/95 to-[#0A2926]/95 border-b border-[#D7B463]/20' 
-              : userRole === 'admin' 
+              : userRole === 'platform_admin' || userRole === 'admin'
                 ? 'bg-gradient-to-br from-[#4B3612]/95 to-[#1E180B]/95 border-b border-[#D7B463]/30' 
                 : 'bg-gradient-to-br from-[#13524D]/95 to-[#0A2926]/95 border-b border-[#D7B463]/20'
           }`}>
@@ -467,13 +342,15 @@ export default function ProfileDrawer({
                       {googleUser.email}
                     </p>
                     <div className={`mt-2 inline-flex items-center gap-1 text-[9px] font-extrabold px-2.5 py-0.5 rounded-full uppercase tracking-wider ${
-                      userRole === 'admin' 
+                      userRole === 'platform_admin' || userRole === 'admin'
                         ? 'bg-[#D7B463]/20 text-[#F7EFDB] border border-[#D7B463]/40' 
                         : userRole === 'curator'
                         ? 'bg-[#2C3E5A]/45 text-[#E5EFED] border border-[#D7B463]/30'
                         : 'bg-[#247B73]/30 text-[#E5EFED] border border-[#D7B463]/25'
                     }`}>
-                      {userRole === 'admin' 
+                      {userRole === 'platform_admin'
+                        ? 'Admin Platform · Tim BALALA'
+                        : userRole === 'admin' 
                         ? `Toko: ${getStoreName(adminCulture)}` 
                         : userRole === 'curator'
                         ? 'Kurator Adat'
@@ -525,11 +402,35 @@ export default function ProfileDrawer({
                   <p className="text-[11px] text-[#5C6F6B]">
                     Layanan Otentikasi Balla AR Terenkripsi
                   </p>
+                  {actionNotice && (
+                    <div className="p-2.5 bg-[#9E3F44]/10 border border-[#9E3F44]/25 text-[#7C3238] rounded-xl text-[11px] font-medium text-left">
+                      {actionNotice.text}
+                    </div>
+                  )}
                 </div>
               </div>
             ) : (
               // IF LOGGED IN: SHOW MULTI-ROLE CONTAINER (Toko Penjual vs Kolektor Pembeli)
               <div className="space-y-5">
+                {actionNotice && (
+                  <div className={`p-3 rounded-2xl border text-xs font-medium flex items-center justify-between gap-2 ${
+                    actionNotice.type === 'error'
+                      ? 'bg-[#9E3F44]/12 border-[#9E3F44]/30 text-[#7C3238]'
+                      : actionNotice.type === 'info'
+                      ? 'bg-[#F7EFDB] border-[#D7B463]/40 text-[#6E5118]'
+                      : 'bg-[#13524D]/10 border-[#13524D]/25 text-[#10423E]'
+                  }`}>
+                    <span>{actionNotice.text}</span>
+                    <button
+                      type="button"
+                      onClick={() => setActionNotice(null)}
+                      aria-label="Tutup pemberitahuan"
+                      className="opacity-70 hover:opacity-100 cursor-pointer shrink-0"
+                    >
+                      <X size={14} />
+                    </button>
+                  </div>
+                )}
 
                 {/* Quick Favorites / Basket Counter summary */}
                 <div className="grid grid-cols-2 gap-3.5">
@@ -553,31 +454,44 @@ export default function ProfileDrawer({
                   </div>
                 </div>
 
-                {/* SUPER ADMIN APPROVAL HUB - EXCLUSIVE FOR WIRABUANAMOHALFINOOR@GMAIL.COM */}
-                {googleUser?.email === 'wirabuanamohalfinoor@gmail.com' && (
+                {/* SUPER ADMIN & TIM BALALA 3D CONSOLE ENTRY - EXCLUSIVE FOR WIRABUANAMOHALFINOOR@GMAIL.COM */}
+                {isAuthorizedPlatformAdmin(googleUser?.email) && (
                   <div className="liquid-glass-dark text-[#FAF8F3] rounded-3xl p-5 shadow-xl space-y-4 relative overflow-hidden">
                     <div className="absolute -top-10 -right-10 w-28 h-28 bg-[#D7B463]/15 rounded-full blur-xl pointer-events-none" />
                     
                     <div className="flex items-center justify-between border-b border-[#D7B463]/20 pb-3">
                       <div className="space-y-0.5">
                         <span className="text-[8px] font-extrabold text-[#D7B463] bg-[#D7B463]/12 px-2 py-0.5 rounded-md border border-[#D7B463]/30 uppercase tracking-widest block w-fit font-mono">
-                          SUPER PLATFORM MANAGER
+                          ADMIN PLATFORM · TIM BALALA
                         </span>
                         <h3 className="text-xs font-serif font-extrabold text-[#FAF8F3] flex items-center gap-1.5 mt-1.5">
-                          Pusat Persetujuan Adat (Wirabuana)
+                          Console Pengelola &amp; Workshop 3D
                         </h3>
                       </div>
                       <Store size={18} className="text-[#D7B463]" />
                     </div>
 
-                    <p className="text-[10px] text-[#E5EFED]/75 leading-relaxed font-sans">
-                      Sebagai perwakilan resmi Komite Penasihat Balla AR tingkat pusat, Anda memegang hak prerogatif penuh untuk menyetujui atau menolak pendaftaran pengrajin Sanggar Suku baru sebelum mereka diizinkan berdagang.
+                    <p className="text-[10.5px] text-[#E5EFED]/80 leading-relaxed font-sans">
+                      Akses eksklusif terverifikasi untuk akun utama pengelola Balla AR: kurasi aset 3D/AR (.glb &amp; .usdz), verifikasi UMKM mitra, kontrol katalog global, serta pelacakan komisi 1%–2% dan escrow transaksi.
                     </p>
 
-                    {/* Pending applicants list */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setUserRole('platform_admin');
+                        onClose();
+                        onOpenPlatformAdmin?.();
+                      }}
+                      className="w-full liquid-glass-gold hover:brightness-105 text-[#0A2926] active:scale-[0.98] py-3 px-4 rounded-xl text-xs font-extrabold transition-all cursor-pointer flex items-center justify-center gap-2 shadow-md"
+                    >
+                      <Sparkles size={14} />
+                      <span>Buka Console Admin Platform &amp; 3D (Tim BALALA)</span>
+                    </button>
+
+                    {/* Pending applicants quick list */}
                     <div className="space-y-2.5 pt-1">
                       <h4 className="text-[9.5px] font-bold text-[#D7B463] uppercase tracking-wider font-mono">
-                        Daftar Pengajuan Masuk ({applications.filter(a => a.status === 'pending').length})
+                        Antrean Pengajuan Mitra ({applications.filter(a => a.status === 'pending').length})
                       </h4>
 
                       {applications.filter(a => a.status === 'pending').length === 0 ? (
@@ -585,7 +499,7 @@ export default function ProfileDrawer({
                           <p className="text-[11px] text-[#E5EFED]/75 italic">Tidak ada pendaftaran mitra yang tertunda saat ini.</p>
                         </div>
                       ) : (
-                        <div className="space-y-2 max-h-[220px] overflow-y-auto no-scrollbar">
+                        <div className="space-y-2 max-h-[200px] overflow-y-auto no-scrollbar">
                           {applications.filter(a => a.status === 'pending').map((app) => (
                             <div 
                               key={app.id} 
@@ -600,10 +514,7 @@ export default function ProfileDrawer({
                               <div className="text-[10.5px] text-[#E5EFED]/80 leading-normal">
                                 <span className="font-bold text-[#D7B463]/85">Pemohon:</span> {app.applicantName} ({app.applicantEmail})
                               </div>
-                              <div className="text-[10px] bg-[#071816]/80 p-2 rounded-lg text-[#E5EFED]/75 italic font-medium leading-relaxed border border-white/5">
-                                "{app.bio}"
-                              </div>
-                              <div className="pt-1.5 flex gap-1.5">
+                              <div className="pt-1 flex gap-1.5">
                                 <button
                                   type="button"
                                   onClick={() => handleRejectApplication(app.id)}
@@ -624,304 +535,8 @@ export default function ProfileDrawer({
                         </div>
                       )}
                     </div>
-
-                    <div className="bg-white/5 p-2.5 rounded-xl border border-white/10 text-[10.5px] text-[#E5EFED]/85 font-medium">
-                      Suku Teraktif saat ini: <strong className="text-[#D7B463]">Toraja &amp; Sutra Mandar</strong>. Pendaftaran yang disetujui meluncurkan notifikasi instan.
-                    </div>
                   </div>
                 )}
-
-                {/* ROLE MANAGEMENT & ACCESS ASSIGNMENT SECTION */}
-                <div className="liquid-glass-card rounded-3xl p-5 space-y-4 relative overflow-hidden">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-xs font-extrabold text-[#10423E] flex items-center gap-1.5">
-                      <Lock size={13} className="text-[#13524D]" /> Otorisasi Akses Mitra
-                    </h3>
-                  </div>
-
-                  {/* Tab Selector Inside Role Section */}
-                  <div className="grid grid-cols-3 gap-1 p-1 liquid-glass-subtle rounded-xl">
-                    <button
-                      type="button"
-                      onClick={() => setSelectedLoginRole('user')}
-                      className={`py-2 rounded-lg font-bold text-[9px] sm:text-[9.5px] transition-all cursor-pointer ${selectedLoginRole === 'user' ? 'bg-[#FAF8F3] text-[#10423E] shadow-xs border border-[#D7B463]/25' : 'text-[#5C6F6B] hover:text-[#10423E]'}`}
-                    >
-                      Pembeli
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setSelectedLoginRole('admin')}
-                      className={`py-2 rounded-lg font-bold text-[9px] sm:text-[9.5px] transition-all cursor-pointer ${selectedLoginRole === 'admin' ? 'bg-[#FAF8F3] text-[#10423E] shadow-xs border border-[#D7B463]/25' : 'text-[#5C6F6B] hover:text-[#10423E]'}`}
-                    >
-                      Penjual
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setSelectedLoginRole('curator')}
-                      className={`py-2 rounded-lg font-bold text-[9px] sm:text-[9.5px] transition-all cursor-pointer ${selectedLoginRole === 'curator' ? 'bg-[#FAF8F3] text-[#10423E] shadow-xs border border-[#D7B463]/25' : 'text-[#5C6F6B] hover:text-[#10423E]'}`}
-                    >
-                      Kurator
-                    </button>
-                  </div>
-
-                  {loginError && (
-                    <div className="p-2.5 bg-[#9E3F44]/10 border border-[#9E3F44]/25 text-[#7C3238] rounded-xl text-[10.5px] font-medium flex items-center gap-1.5">
-                      <ShieldAlert size={12} className="shrink-0" />
-                      <span>{loginError}</span>
-                    </div>
-                  )}
-
-                  <AnimatePresence mode="wait">
-                    {selectedLoginRole === 'user' ? (
-                      /* USER TAB CONTENT */
-                      <motion.div
-                        key="user-tab-panel"
-                        initial={{ opacity: 0, y: 5 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -5 }}
-                        className="space-y-3"
-                      >
-                        {userRole === 'user' ? (
-                          <div className="bg-[#FAF8F3]/75 border border-[#D7B463]/25 p-3.5 rounded-2xl text-xs space-y-2.5">
-                            <div className="flex items-center justify-between">
-                              <span className="font-extrabold text-[#162624]">Status Akses: Aktif</span>
-                              <span className="text-[9px] font-bold px-2 py-0.5 rounded-md bg-[#13524D]/12 text-[#10423E] border border-[#13524D]/25">
-                                Kolektor / User
-                              </span>
-                            </div>
-
-                            <div className="bg-[#FAF8F3] p-2.5 rounded-xl border border-[#13524D]/10 flex items-center justify-between">
-                              <div>
-                                <h4 className="font-bold text-[#10423E] leading-tight">Pelestari &amp; Pembeli</h4>
-                                <p className="text-[9.5px] text-[#5C6F6B] mt-0.5">Melihat galeri &amp; Simulasi Checkout Pusaka</p>
-                              </div>
-                              <User size={16} className="text-[#13524D]" />
-                            </div>
-                            <p className="text-[9.5px] text-[#5C6F6B] italic">
-                              Anda masuk otomatis menggunakan Akun Google dengan peran Pembeli Budaya Nusantara.
-                            </p>
-                          </div>
-                        ) : (
-                          <div className="space-y-3">
-                            <div className="p-3 bg-[#13524D]/8 border border-[#13524D]/20 rounded-xl text-xs space-y-1">
-                              <p className="font-extrabold text-[#10423E]">Akses Pembeli Instan</p>
-                              <p className="text-[10px] text-[#445754] leading-snug">
-                                Beralih kembali ke peran Kolektor &amp; Pembeli umum untuk melihat galeri secara utuh &amp; melakukan checkout pelanggan.
-                              </p>
-                            </div>
-                            <button
-                              type="button"
-                              onClick={() => handlePerformRoleSwitch('user')}
-                              className="w-full liquid-glass-teal hover:brightness-110 text-[#FAF8F3] font-extrabold py-2.5 rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-sm transition-all cursor-pointer active:scale-95"
-                            >
-                              <LogIn size={13} />
-                              <span>Ganti Peran ke Mode Pembeli</span>
-                            </button>
-                          </div>
-                        )}
-                      </motion.div>
-                    ) : selectedLoginRole === 'admin' ? (
-                      /* ADMIN/MERCHANT TAB CONTENT depending on merchantStatus */
-                      <motion.div
-                        key="admin-tab-panel"
-                        initial={{ opacity: 0, y: 5 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -5 }}
-                        className="space-y-3"
-                      >
-                        {merchantStatus === 'approved' ? (
-                          /* MITRA SUDAH DISETUJUI PERUSAHAAN */
-                          <div className="space-y-3">
-                            {userRole === 'admin' ? (
-                              <div className="bg-[#FAF8F3]/75 border border-[#D7B463]/30 p-3.5 rounded-2xl text-xs space-y-2.5">
-                                <div className="flex items-center justify-between">
-                                  <span className="font-extrabold text-[#162624]">Status Akses: Aktif</span>
-                                  <span className="text-[9px] font-bold px-2 py-0.5 rounded-md bg-[#F7EFDB] text-[#A87F2D] border border-[#D7B463]/40">
-                                    Mitra Penjual
-                                  </span>
-                                </div>
-
-                                <div className="bg-[#FAF8F3] p-2.5 rounded-xl border border-[#D7B463]/20 flex items-center justify-between">
-                                  <div>
-                                    <h4 className="font-bold text-[#A87F2D] leading-tight">{getStoreName(adminCulture)}</h4>
-                                    <p className="text-[9.5px] text-[#5C6F6B] mt-0.5">Pemilik Hak Sanggar Suku {adminCulture}</p>
-                                  </div>
-                                  <Store size={16} className="text-[#A87F2D]" />
-                                </div>
-                                <p className="text-[9.5px] text-[#A87F2D] leading-relaxed italic">
-                                  Pendaftaran akun Google Anda telah dikonfirmasi oleh Perusahaan. Menu "Tambah Produk Baru" kini aktif di panel atas galeri utama.
-                                </p>
-                              </div>
-                            ) : (
-                              <div className="space-y-3">
-                                <div className="p-3 bg-[#F7EFDB]/65 border border-[#D7B463]/35 rounded-xl text-xs">
-                                  <p className="font-semibold text-[#6E5118]">Akun Mitra Telah Verifikasi</p>
-                                  <p className="text-[10px] text-[#445754] mt-1 leading-snug">
-                                    Pendaftaran akun Anda sudah dikonfirmasi. Aktifkan peran Toko untuk mulai melestarikan &amp; mengunggah pusaka baru.
-                                  </p>
-                                </div>
-                                <button
-                                  type="button"
-                                  onClick={() => handlePerformRoleSwitch('admin')}
-                                  className="w-full liquid-glass-gold hover:brightness-105 text-[#0A2926] font-extrabold py-2.5 rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-sm transition-all cursor-pointer active:scale-95"
-                                >
-                                  <LogIn size={13} />
-                                  <span>Ganti Peran ke Mode Penjual</span>
-                                </button>
-                              </div>
-                            )}
-                          </div>
-                        ) : merchantStatus === 'pending' ? (
-                          /* PROSES PENDAFTARAN MENUNGGU KONFIRMASI */
-                          <div className="space-y-4">
-                            <div className="bg-[#F7EFDB]/75 border border-[#D7B463]/40 p-4 rounded-2xl text-xs space-y-3">
-                              <div className="flex items-center gap-2 text-[#8C6820] font-bold">
-                                <div className="w-2 h-2 rounded-full bg-[#C59B42] shrink-0" />
-                                <span>Menunggu Konfirmasi Perusahaan</span>
-                              </div>
-                              <p className="text-[11px] text-[#445754] leading-relaxed">
-                                Halo <strong>{googleUser.name}</strong>, formulir pendaftaran <strong>"{merchantStoreName}"</strong> telah diterima oleh tim pusat kami. Kami sedang menyeleksi kelayakan dokumen izin adat Anda.
-                              </p>
-
-                              <div className="bg-[#FAF8F3] p-2.5 rounded-xl border border-[#D7B463]/25 space-y-1 text-[10px]">
-                                <div className="flex justify-between"><span className="text-[#5C6F6B]">Toko Adat:</span> <span className="font-semibold text-[#162624]">{merchantStoreName}</span></div>
-                                <div className="flex justify-between truncate"><span className="text-[#5C6F6B]">Alamat:</span> <span className="font-semibold text-[#162624]">{merchantAddress}</span></div>
-                              </div>
-                            </div>
-
-                            {/* SIMULATION ADMIN CONFIRMATION TRIGGER */}
-                            <div className="liquid-glass-dark text-[#FAF8F3] p-4 rounded-2xl space-y-3">
-                              <div className="flex items-center gap-1.5 text-[#D7B463] font-extrabold text-[10px] uppercase tracking-wider">
-                                <Sparkles size={12} />
-                                <span>Simulasi Admin Perusahaan</span>
-                              </div>
-                              <p className="text-[10px] text-[#E5EFED]/75 leading-snug">
-                                Untuk menyimulasikan persetujuan instan dari pihak perusahaan Balla AR selaku pemilik platform, klik tombol konfirmasi di bawah ini:
-                              </p>
-                              <button
-                                type="button"
-                                onClick={handleSimulateCompanyApproval}
-                                className="w-full liquid-glass-gold hover:brightness-105 text-[#0A2926] font-extrabold py-2 rounded-xl text-[11px] shadow-md transition-all active:scale-[0.98] cursor-pointer"
-                              >
-                                Konfirmasi Akun Google Menjadi Penjual
-                              </button>
-                            </div>
-                          </div>
-                        ) : (
-                          /* FORM PENDAFTARAN (merchantStatus === 'none') */
-                          <form onSubmit={handleRegisterMerchantSubmit} className="space-y-3">
-                            <div className="p-3 liquid-glass-subtle rounded-2xl text-[11px] text-[#445754] leading-relaxed">
-                              Anda masuk otomatis sebagai pembeli. Jika ingin menjadi Penjual (Pengrajin), daftarkan sanggar Anda terlebih dahulu untuk konfirmasi.
-                            </div>
-
-                            <div className="space-y-2 text-xs">
-                              <div className="space-y-1">
-                                <label className="block text-[10.5px] font-semibold text-[#445754]">Nama Sanggar Adat / Toko</label>
-                                <input
-                                  type="text"
-                                  placeholder="contoh: Sanggar Pusaka Somba Opu"
-                                  value={merchantStoreName}
-                                  onChange={(e) => setMerchantStoreName(e.target.value)}
-                                  className="w-full liquid-glass-input rounded-xl px-3 py-2 outline-none"
-                                  required
-                                />
-                              </div>
-
-                              <div className="space-y-1">
-                                <label className="block text-[10.5px] font-semibold text-[#445754]">Kontak Darurat</label>
-                                <input
-                                  type="text"
-                                  disabled
-                                  value={customPhone}
-                                  className="w-full bg-[#EAE3D5]/55 border border-[#D7B463]/20 rounded-xl px-3 py-2 text-[#5C6F6B] cursor-not-allowed text-xs tabular-nums"
-                                />
-                              </div>
-
-                              <div className="space-y-1">
-                                <label className="block text-[10.5px] font-semibold text-[#445754]">Alamat Workshop / Sanggar Adat</label>
-                                <input
-                                  type="text"
-                                  placeholder="Nama Jalan, Kec., Kabupaten, Sulawesi Selatan"
-                                  value={merchantAddress}
-                                  onChange={(e) => setMerchantAddress(e.target.value)}
-                                  className="w-full liquid-glass-input rounded-xl px-3 py-2 outline-none"
-                                  required
-                                />
-                              </div>
-
-                              <div className="space-y-1">
-                                <label className="block text-[10.5px] font-semibold text-[#445754]">Rencana Karya Seni (Bio Toko)</label>
-                                <textarea
-                                  placeholder="Terangkan karya ukiran logam/kayu atau kain sutra yang diproduksi..."
-                                  rows={2}
-                                  value={merchantBio}
-                                  onChange={(e) => setMerchantBio(e.target.value)}
-                                  className="w-full liquid-glass-input rounded-xl px-3 py-2 outline-none resize-none"
-                                />
-                              </div>
-                            </div>
-
-                            <button
-                              type="submit"
-                              className="w-full liquid-glass-gold hover:brightness-105 text-[#0A2926] font-extrabold py-2.5 rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-sm transition-all cursor-pointer active:scale-95"
-                            >
-                              <Briefcase size={13} className="shrink-0" />
-                              <span>Kirim Pendaftaran ke Perusahaan</span>
-                            </button>
-                          </form>
-                        )}
-                      </motion.div>
-                    ) : (
-                      /* CURATOR TAB CONTENT */
-                      <motion.div
-                        key="curator-tab-panel"
-                        initial={{ opacity: 0, y: 5 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -5 }}
-                        className="space-y-3"
-                      >
-                        {userRole === 'curator' ? (
-                          <div className="bg-[#FAF8F3]/75 border border-[#D7B463]/25 p-3.5 rounded-2xl text-xs space-y-2.5">
-                            <div className="flex items-center justify-between">
-                              <span className="font-extrabold text-[#162624]">Status Akses: Aktif</span>
-                              <span className="text-[9px] font-mono font-bold px-2 py-0.5 rounded-md bg-[#0A2926] border border-[#D7B463]/40 text-[#D7B463]">
-                                KURATOR PLATFORM
-                              </span>
-                            </div>
-
-                            <div className="bg-[#FAF8F3] p-2.5 rounded-xl border border-[#13524D]/10 flex items-center justify-between">
-                              <div>
-                                <h4 className="font-bold text-[#10423E] leading-tight">Komite Evaluasi Adat</h4>
-                                <p className="text-[9.5px] text-[#5C6F6B] mt-0.5">Memasang &amp; mendaftar status kurasi produk global</p>
-                              </div>
-                              <BadgeCheck size={18} className="text-[#13524D]" />
-                            </div>
-                            <p className="text-[9.5px] text-[#5C6F6B] italic">
-                              Anda masuk otomatis sebagai Kurator Balla AR. Panel Kurasi Khusus kini aktif di halaman utama untuk menyeleksi produk baru dari para pengrajin.
-                            </p>
-                          </div>
-                        ) : (
-                          <div className="space-y-3">
-                            <div className="p-3 bg-[#2C3E5A]/8 border border-[#2C3E5A]/20 rounded-xl text-xs">
-                              <p className="font-semibold text-[#1E2E46]">Ujicoba Mode Kurator</p>
-                              <p className="text-[10px] text-[#445754] mt-1 leading-snug">
-                                Beralih peran menjadi perwakilan Admin/Komite Kurator Balla AR untuk menyaring produk baru yang diajukan oleh sanggar.
-                              </p>
-                            </div>
-                            <button
-                              type="button"
-                              onClick={() => handlePerformRoleSwitch('curator')}
-                              className="w-full liquid-glass-dark hover:brightness-110 text-[#FAF8F3] font-extrabold py-2.5 rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-sm transition-all cursor-pointer active:scale-95"
-                            >
-                              <LogIn size={13} />
-                              <span>Aktifkan Mode Kurator</span>
-                            </button>
-                          </div>
-                        )}
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </div>
 
                 {/* PROFILE INFORMATION EDIT AREA */}
                 {userRole === 'user' && (
@@ -1051,6 +666,27 @@ export default function ProfileDrawer({
                 >
                   <LogOut size={14} className="shrink-0" />
                   <span>Keluar Akun Google Terhubung</span>
+                </button>
+
+                {/* COLLAPSED UMKM PARTNER REGISTRATION BUTTON (BELOW LOGOUT) */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    onClose();
+                    onOpenMerchantRegistration?.();
+                  }}
+                  className="w-full liquid-glass-pill hover:bg-[#13524D]/10 hover:text-[#10423E] text-[#445754] font-bold py-3.5 rounded-2xl text-xs flex items-center justify-center gap-2 transition-all cursor-pointer"
+                >
+                  <Store size={14} className="shrink-0 text-[#13524D]" />
+                  <span>
+                    {merchantStatus === 'approved'
+                      ? `Mitra Pengrajin UMKM (${currentUserApp?.storeName || merchantStoreName || 'Disetujui'})`
+                      : merchantStatus === 'pending'
+                      ? 'Pendaftaran Mitra UMKM (Menunggu ACC)'
+                      : merchantStatus === 'rejected'
+                      ? 'Daftar Mitra Pengrajin UMKM (Perbaiki)'
+                      : 'Daftar Mitra Pengrajin UMKM'}
+                  </span>
                 </button>
 
               </div>

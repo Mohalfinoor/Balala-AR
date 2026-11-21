@@ -34,7 +34,8 @@ import {
   Hammer,
   Camera,
   Video,
-  VideoOff
+  VideoOff,
+  Store
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -65,29 +66,36 @@ import ProfileDrawer from './components/ProfileDrawer';
 import HeritageModal from './components/HeritageModal';
 import AddProductModal from './components/AddProductModal';
 import ARSnapshotModal from './components/ARSnapshotModal';
+import PlatformAdminConsole from './components/PlatformAdminConsole';
+import SellerDashboardConsole from './components/SellerDashboardConsole';
+import MerchantRegistrationPage from './components/MerchantRegistrationPage';
 import { captureARSnapshot, CapturedSnapshotResult } from './utils/arSnapshot';
+import {
+  auth,
+  signInWithGoogle,
+  logout as firebaseLogout,
+  subscribeAuthState,
+  subscribeMerchantApplications,
+  saveMerchantApplicationToDb,
+  updateMerchantApplicationInDb,
+  subscribeCatalogProducts,
+  saveCatalogProductToDb,
+  upsertCatalogProductInDb,
+  deleteCatalogProductInDb,
+  subscribePlatformOrders,
+  savePlatformOrderToDb,
+  updatePlatformOrderInDb
+} from './firebase';
+import {
+  UserRole,
+  Product,
+  MerchantApplication,
+  PlatformOrder,
+  isAuthorizedPlatformAdmin
+} from './types/platform';
 
 // --- Types ---
-type View = 'home' | 'ar' | 'details';
-
-interface Product {
-  id: string;
-  name: string;
-  price: string;
-  image: string;
-  culture: string;
-  rating: number;
-  description: string;
-  philosophy: string;
-  status?: 'pending' | 'approved' | 'rejected';
-  glbUrl?: string;
-  usdzUrl?: string;
-  dimensions?: {
-    length: number;
-    width: number;
-    height: number;
-  };
-}
+type View = 'home' | 'ar' | 'details' | 'platform_admin' | 'seller_console' | 'merchant_register';
 
 interface Culture {
   id: string;
@@ -879,11 +887,14 @@ const Header = ({
   onFavoritesClick,
   onCartClick,
   onHomeClick,
+  onOpenPlatformAdmin,
+  onOpenSellerDashboard,
   cartCount,
   favoritesCount,
   unreadCount,
   googleUser,
-  userRole
+  userRole,
+  hasActiveOverlay = false
 }: { 
   searchQuery: string; 
   setSearchQuery: (q: string) => void; 
@@ -892,18 +903,38 @@ const Header = ({
   onFavoritesClick: () => void;
   onCartClick: () => void;
   onHomeClick: () => void;
+  onOpenPlatformAdmin?: () => void;
+  onOpenSellerDashboard?: () => void;
   cartCount: number;
   favoritesCount: number;
   unreadCount: number;
   googleUser: { name: string; email: string; avatar: string; } | null;
-  userRole: 'user' | 'admin' | 'curator';
+  userRole: UserRole;
+  hasActiveOverlay?: boolean;
 }) => {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
+  const [isNavbarFocused, setIsNavbarFocused] = useState(false);
   const [isHeaderVisible, setIsHeaderVisible] = useState(true);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const lastScrollYRef = useRef(0);
 
-  // Follow on scroll down, hide when scrolling up (always visible near top or when menu open)
+  const hasActiveSearch = searchQuery.trim().length > 0;
+  const isNavbarActive =
+    isDropdownOpen ||
+    isSearchFocused ||
+    isNavbarFocused ||
+    hasActiveSearch ||
+    hasActiveOverlay;
+
+  // Keep header visible immediately whenever any navbar feature is active
+  useEffect(() => {
+    if (isNavbarActive) {
+      setIsHeaderVisible(true);
+    }
+  }, [isNavbarActive]);
+
+  // Follow on scroll down, hide when scrolling up (never hide while navbar is active)
   useEffect(() => {
     lastScrollYRef.current = typeof window !== 'undefined' ? Math.max(0, window.scrollY) : 0;
 
@@ -911,7 +942,7 @@ const Header = ({
       const currentY = Math.max(0, window.scrollY);
       const delta = currentY - lastScrollYRef.current;
 
-      if (isDropdownOpen || currentY <= 24) {
+      if (isNavbarActive || currentY <= 24) {
         setIsHeaderVisible(true);
       } else if (delta > 6) {
         setIsHeaderVisible(true);
@@ -928,7 +959,7 @@ const Header = ({
     return () => {
       window.removeEventListener('scroll', handleScroll);
     };
-  }, [isDropdownOpen]);
+  }, [isNavbarActive]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -944,82 +975,61 @@ const Header = ({
   }, []);
 
   const totalBadges = cartCount + favoritesCount + (unreadCount > 0 ? 1 : 0);
+  const showHeader = isHeaderVisible || isNavbarActive;
 
   return (
-    <header className="sticky top-0 z-40 px-4 sm:px-6 pt-3 pb-1 pointer-events-none">
+    <header className="sticky top-0 z-40 px-3 sm:px-6 pt-3 pb-1 pointer-events-none">
       <div
         ref={dropdownRef}
-        className={`max-w-7xl mx-auto liquid-glass rounded-2xl sm:rounded-3xl px-4 sm:px-6 py-3 flex flex-col md:flex-row md:items-center md:justify-between gap-3 relative transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${
-          isHeaderVisible
+        onFocusCapture={() => {
+          setIsNavbarFocused(true);
+          setIsHeaderVisible(true);
+        }}
+        onBlurCapture={(e) => {
+          if (!e.currentTarget.contains(e.relatedTarget as Node | null)) {
+            setIsNavbarFocused(false);
+          }
+        }}
+        className={`max-w-7xl mx-auto liquid-glass rounded-full md:rounded-3xl px-2.5 sm:px-6 py-2 md:py-3 flex flex-row items-center justify-between gap-2 sm:gap-3 relative transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${
+          showHeader
             ? 'translate-y-0 opacity-100 pointer-events-auto'
             : '-translate-y-[calc(100%+16px)] opacity-0 pointer-events-none'
         }`}
       >
-        
-        {/* Brand Profile section */}
-        <div className="flex items-center justify-between gap-4">
-          <button onClick={onHomeClick} className="flex items-center gap-3 text-left cursor-pointer shrink-0">
-            <Logo className="w-9 h-9 sm:w-10 sm:h-10" />
-            <div>
-              <h1 className="text-lg sm:text-xl font-bold tracking-tight text-[#10423E] font-serif leading-none whitespace-nowrap">Balla AR</h1>
-              <p className="text-[10px] text-[#5C6F6B] font-medium mt-0.5 hidden sm:block whitespace-nowrap">South Sulawesi Heritage Interiors</p>
-            </div>
-          </button>
-          
-          {/* Mobile Profile & Quick Menu Trigger */}
-          <div className="relative md:hidden flex items-center gap-2">
-            <button
-              onClick={onCartClick}
-              aria-label="Buka keranjang"
-              className="w-10 h-10 rounded-full liquid-glass-pill flex items-center justify-center text-[#10423E] relative cursor-pointer"
-            >
-              <ShoppingBag size={17} />
-              {cartCount > 0 && (
-                <span className="absolute -top-1 -right-1 bg-[#13524D] text-[#FAF8F3] text-[9px] font-bold w-4 h-4 rounded-full flex items-center justify-center tabular-nums">
-                  {cartCount}
-                </span>
-              )}
-            </button>
-            <button 
-              onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-              aria-label="Buka menu pengguna"
-              className={`w-10 h-10 rounded-full ${googleUser ? 'bg-gradient-to-tr from-[#13524D] to-[#C59B42] p-0.5 shadow-sm' : 'liquid-glass-pill flex items-center justify-center text-[#445754]'} active:scale-95 transition-all cursor-pointer relative`}
-            >
-              {googleUser ? (
-                <img 
-                  src={googleUser.avatar} 
-                  alt="Avatar" 
-                  className="w-full h-full rounded-full object-cover border border-white/50"
-                  referrerPolicy="no-referrer"
-                />
-              ) : (
-                <User size={18} />
-              )}
-              {totalBadges > 0 && (
-                <span className="absolute -top-1 -right-1 bg-[#9E3F44] border-2 border-[#FAF8F3] text-[#FAF8F3] text-[8px] font-bold w-4.5 h-4.5 rounded-full flex items-center justify-center tabular-nums">
-                  {totalBadges}
-                </span>
-              )}
-            </button>
+        {/* Brand Logo (text hidden on mobile for compact single-row navbar) */}
+        <button
+          onClick={onHomeClick}
+          aria-label="Balla AR Beranda"
+          className="flex items-center gap-3 text-left cursor-pointer shrink-0"
+        >
+          <Logo className="w-9 h-9 sm:w-10 sm:h-10 shrink-0" />
+          <div className="hidden md:block">
+            <h1 className="text-xl font-bold tracking-tight text-[#10423E] font-serif leading-none whitespace-nowrap">Balla AR</h1>
+            <p className="text-[10px] text-[#5C6F6B] font-medium mt-0.5 whitespace-nowrap">South Sulawesi Heritage Interiors</p>
           </div>
-        </div>
-        
-        {/* Search & Desktop Actions */}
-        <div className="flex items-center gap-3 flex-1 max-w-xl md:ml-auto">
-          <div className="relative flex-1">
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#5C6F6B] pointer-events-none" size={15} />
-            <input 
-              type="text" 
+        </button>
+
+        {/* Inline Search & Actions */}
+        <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0 md:max-w-xl md:ml-auto">
+          <div className="relative flex-1 min-w-0">
+            <Search className="absolute left-3 sm:left-3.5 top-1/2 -translate-y-1/2 text-[#445754] pointer-events-none z-10" size={15} />
+            <input
+              type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Cari kursi Toraja, lemari Bugis, sofa Mandar..." 
-              className="w-full liquid-glass-input rounded-2xl py-2.5 pl-10 pr-9 text-xs text-[#162624] placeholder:text-[#5C6F6B]/80 outline-none transition-all"
+              onFocus={() => {
+                setIsSearchFocused(true);
+                setIsHeaderVisible(true);
+              }}
+              onBlur={() => setIsSearchFocused(false)}
+              placeholder="Cari perabot adat..."
+              className="w-full liquid-glass-input rounded-full md:rounded-2xl py-2 md:py-2.5 pl-9 sm:pl-10 pr-8 sm:pr-9 text-xs text-[#162624] placeholder:text-[#5C6F6B]/85 outline-none transition-all"
             />
             {searchQuery && (
-              <button 
+              <button
                 onClick={() => setSearchQuery('')}
                 aria-label="Hapus pencarian"
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-[#5C6F6B] hover:text-[#10423E] text-sm font-bold transition-colors cursor-pointer"
+                className="absolute right-2.5 sm:right-3 top-1/2 -translate-y-1/2 text-[#5C6F6B] hover:text-[#10423E] text-sm font-bold transition-colors cursor-pointer z-10"
               >
                 ×
               </button>
@@ -1071,21 +1081,26 @@ const Header = ({
             </button>
           </div>
 
-          {/* Desktop Profile Trigger */}
-          <button 
+          {/* Unified Profile & Quick Menu Trigger (includes Cart on mobile) */}
+          <button
             onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-            aria-label="Akun & Peran"
-            className={`hidden md:flex w-10 h-10 rounded-full ${googleUser ? 'bg-gradient-to-tr from-[#13524D] to-[#C59B42] p-0.5 shadow-sm hover:brightness-105' : 'liquid-glass-pill items-center justify-center text-[#445754] hover:text-[#10423E]'} active:scale-95 transition-all cursor-pointer relative shrink-0`}
+            aria-label="Buka menu akun dan keranjang"
+            className={`flex w-9 h-9 sm:w-10 sm:h-10 rounded-full ${googleUser ? 'bg-gradient-to-tr from-[#13524D] to-[#C59B42] p-0.5 shadow-sm hover:brightness-105' : 'liquid-glass-pill items-center justify-center text-[#445754] hover:text-[#10423E]'} active:scale-95 transition-all cursor-pointer relative shrink-0`}
           >
             {googleUser ? (
-              <img 
-                src={googleUser.avatar} 
-                alt="Avatar" 
+              <img
+                src={googleUser.avatar}
+                alt="Avatar"
                 className="w-full h-full rounded-full object-cover border border-white/50"
                 referrerPolicy="no-referrer"
               />
             ) : (
               <User size={18} />
+            )}
+            {totalBadges > 0 && (
+              <span className="md:hidden absolute -top-1 -right-1 bg-[#9E3F44] border-2 border-[#FAF8F3] text-[#FAF8F3] text-[8px] font-bold w-4.5 h-4.5 rounded-full flex items-center justify-center tabular-nums">
+                {totalBadges}
+              </span>
             )}
           </button>
         </div>
@@ -1098,7 +1113,7 @@ const Header = ({
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 8, scale: 0.96 }}
               transition={{ duration: 0.16, ease: [0.16, 1, 0.3, 1] }}
-              className="absolute right-3 sm:right-5 top-[60px] md:top-[66px] w-72 liquid-glass rounded-2xl p-3 z-50 flex flex-col gap-1.5 shadow-2xl"
+              className="absolute right-2 sm:right-5 top-[58px] md:top-[66px] w-72 bg-[linear-gradient(155deg,rgba(255,254,251,0.97)_0%,rgba(247,243,235,0.94)_100%)] backdrop-blur-2xl backdrop-saturate-150 border border-[#D7B463]/35 rounded-2xl p-3 z-50 flex flex-col gap-1.5 shadow-[0_20px_48px_-12px_rgba(10,41,38,0.28),inset_0_1px_1px_rgba(255,255,255,0.98)]"
             >
                   <div className="px-2.5 py-2 border-b border-[#D7B463]/20 mb-1">
                     {googleUser ? (
@@ -1106,7 +1121,9 @@ const Header = ({
                         <p className="text-xs font-bold text-[#10423E] truncate">{googleUser.name}</p>
                         <p className="text-[10.5px] text-[#5C6F6B] truncate">{googleUser.email}</p>
                         <p className="mt-1 text-[10px] font-bold text-[#A87F2D]">
-                          {userRole === 'admin' 
+                          {userRole === 'platform_admin'
+                            ? 'Admin Platform · Tim BALALA'
+                            : userRole === 'admin' 
                             ? 'Mitra Penjual' 
                             : userRole === 'curator' 
                             ? 'Kurator Adat' 
@@ -1159,6 +1176,36 @@ const Header = ({
                       <p className="text-[10px] text-[#5C6F6B] leading-none tabular-nums">{unreadCount} info belum dibaca</p>
                     </div>
                   </button>
+
+                  {isAuthorizedPlatformAdmin(googleUser?.email) && onOpenPlatformAdmin && (
+                    <button
+                      onClick={() => { onOpenPlatformAdmin(); setIsDropdownOpen(false); }}
+                      className="flex items-center gap-3 p-2.5 rounded-xl bg-[#10423E] hover:bg-[#0A2926] text-left transition-colors cursor-pointer w-full mt-0.5 shadow-sm"
+                    >
+                      <div className="w-8 h-8 rounded-lg bg-[#D7B463]/20 border border-[#D7B463]/40 flex items-center justify-center text-[#D7B463] flex-shrink-0">
+                        <Shield size={15} />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <h4 className="text-xs font-bold text-[#FAF8F3]">Console Admin &amp; 3D</h4>
+                        <p className="text-[10px] text-[#D7B463] leading-none">Tim BALALA · Akses Terverifikasi</p>
+                      </div>
+                    </button>
+                  )}
+
+                  {userRole === 'admin' && onOpenSellerDashboard && (
+                    <button
+                      onClick={() => { onOpenSellerDashboard(); setIsDropdownOpen(false); }}
+                      className="flex items-center gap-3 p-2.5 rounded-xl bg-[#F7EFDB] hover:bg-[#EFE2C1] border border-[#D7B463]/40 text-left transition-colors cursor-pointer w-full mt-0.5"
+                    >
+                      <div className="w-8 h-8 rounded-lg bg-[#10423E] flex items-center justify-center text-[#FAF8F3] flex-shrink-0">
+                        <Store size={15} />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <h4 className="text-xs font-bold text-[#10423E]">Dasbor Penjual / UMKM</h4>
+                        <p className="text-[10px] text-[#8C6820] leading-none">Kelola produk 3D &amp; pesanan masuk</p>
+                      </div>
+                    </button>
+                  )}
 
                   <button 
                     onClick={() => { onProfileClick(); setIsDropdownOpen(false); }}
@@ -1306,7 +1353,7 @@ function ProductCard({
   isFavorite: boolean;
   onToggleFavorite: () => void;
   onAddToCart: () => void;
-  userRole: 'user' | 'admin' | 'curator';
+  userRole: UserRole;
   adminCulture: string;
   onDelete: () => void;
   key?: string;
@@ -1435,20 +1482,42 @@ const getStoreName = (culture: string): string => {
   }
 };
 
+const readStoredGoogleUser = (): { name: string; email: string; avatar: string } | null => {
+  try {
+    const saved = localStorage.getItem('ballaar_google_user');
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      if (parsed && typeof parsed.avatar === 'string' && (parsed.avatar.includes('unsplash.com') || parsed.avatar.includes('photo-'))) {
+        parsed.avatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(parsed.name || 'Pengguna')}&background=13524D&color=FAF8F3&bold=true&size=150`;
+        localStorage.setItem('ballaar_google_user', JSON.stringify(parsed));
+      }
+      return parsed;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+};
+
 // --- MAIN APPLICATION ENTRY ---
 export default function App() {
-  const [showSplash, setShowSplash] = useState(true);
-  const [view, setView] = useState<View>('home');
+  const initialStoredUser = readStoredGoogleUser();
+  const initialIsPlatformAdmin = isAuthorizedPlatformAdmin(initialStoredUser?.email);
+
+  const [showSplash, setShowSplash] = useState(!initialIsPlatformAdmin);
+  const [view, setView] = useState<View>(initialIsPlatformAdmin ? 'platform_admin' : 'home');
   const [previousView, setPreviousView] = useState<View>('home');
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [categoryFilter, setCategoryFilter] = useState('all');
+  const hasManualCatalogExitRef = useRef(false);
 
   useEffect(() => {
+    if (!showSplash) return;
     const timer = setTimeout(() => {
       setShowSplash(false);
     }, 2200);
     return () => clearTimeout(timer);
-  }, []);
+  }, [showSplash]);
 
   // --- Dynamic local states ---
   const [products, setProducts] = useState<Product[]>(() => {
@@ -1489,10 +1558,13 @@ export default function App() {
     }
   });
 
-  const [userRole, setUserRole] = useState<'user' | 'admin' | 'curator'>(() => {
+  const [userRole, setUserRole] = useState<UserRole>(() => {
+    if (initialIsPlatformAdmin) {
+      return 'platform_admin';
+    }
     try {
       const saved = localStorage.getItem('ballaar_user_role');
-      return (saved as 'user' | 'admin' | 'curator') || 'user';
+      return (saved as UserRole) || 'user';
     } catch {
       return 'user';
     }
@@ -1507,7 +1579,53 @@ export default function App() {
     }
   });
 
+  // Lifted UMKM Merchant Applications (real submissions only, synced with Cloud Firestore)
+  const [applications, setApplications] = useState<MerchantApplication[]>(() => {
+    try {
+      const saved = localStorage.getItem('ballaar_global_merchant_applications');
+      if (saved) {
+        const parsed: MerchantApplication[] = JSON.parse(saved);
+        const realOnly = parsed.filter(
+          a =>
+            a.applicantEmail !== 'tamu.nusantara@gmail.com' &&
+            a.applicantEmail !== 'cantika_toraja@gmail.com' &&
+            a.applicantEmail !== 'sanggar.toraja@ballaar.id'
+        );
+        if (realOnly.length !== parsed.length) {
+          localStorage.setItem('ballaar_global_merchant_applications', JSON.stringify(realOnly));
+        }
+        return realOnly;
+      }
+    } catch {}
+    return [];
+  });
+
+  // Lifted Platform Orders (real checkouts & manual recordings only, synced with Cloud Firestore)
+  const [orders, setOrders] = useState<PlatformOrder[]>(() => {
+    try {
+      const saved = localStorage.getItem('ballaar_platform_orders');
+      if (saved) {
+        const parsed: PlatformOrder[] = JSON.parse(saved);
+        const realOnly = parsed.filter(
+          o =>
+            o.orderCode !== 'BAL-2026-014' &&
+            o.orderCode !== 'BAL-2026-015' &&
+            o.buyerName !== 'Andi Mappanyukki' &&
+            o.buyerName !== 'Siti Rahmawati'
+        );
+        if (realOnly.length !== parsed.length) {
+          localStorage.setItem('ballaar_platform_orders', JSON.stringify(realOnly));
+        }
+        return realOnly;
+      }
+    } catch {}
+    return [];
+  });
+
+  const [firebaseUid, setFirebaseUid] = useState<string | null>(null);
+
   const [isAddProductModalOpen, setIsAddProductModalOpen] = useState(false);
+  const [isAdminGoogleLoading, setIsAdminGoogleLoading] = useState(false);
   const [curatorTab, setCuratorTab] = useState<'pending' | 'history'>('pending');
 
   useEffect(() => {
@@ -1522,6 +1640,18 @@ export default function App() {
     localStorage.setItem('ballaar_admin_culture', adminCulture);
   }, [adminCulture]);
 
+  useEffect(() => {
+    try {
+      localStorage.setItem('ballaar_global_merchant_applications', JSON.stringify(applications));
+    } catch {}
+  }, [applications]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('ballaar_platform_orders', JSON.stringify(orders));
+    } catch {}
+  }, [orders]);
+
   const handleAddProduct = (productData: {
     name: string;
     price: string;
@@ -1529,15 +1659,42 @@ export default function App() {
     culture: string;
     description: string;
     philosophy: string;
+    material?: string;
+    dimensions?: { length: number; width: number; height: number };
   }) => {
     const newId = String(Date.now());
+    const approvedApp = googleUser
+      ? applications.find(
+          a =>
+            a.applicantEmail.toLowerCase() === googleUser.email.toLowerCase() &&
+            a.status === 'approved'
+        )
+      : undefined;
+    let sellerStoreName = approvedApp?.storeName || getStoreName(productData.culture);
+    if (!approvedApp) {
+      try {
+        const savedStore = localStorage.getItem('ballaar_merchant_store_name');
+        if (savedStore && savedStore.trim()) {
+          sellerStoreName = savedStore.trim();
+        }
+      } catch {}
+    }
     const newProduct: Product = {
       id: newId,
       ...productData,
       rating: 5.0,
-      status: 'pending'
+      status: 'pending',
+      sellerUid: auth.currentUser?.uid,
+      sellerName: sellerStoreName
     };
     setProducts(prev => [newProduct, ...prev]);
+    saveCatalogProductToDb(newProduct);
+    handlePushNotification({
+      tag: 'Pengajuan Produk Baru',
+      tagColor: 'amber',
+      title: `Diajukan: ${newProduct.name}`,
+      desc: `Produk "${newProduct.name}" dari ${sellerStoreName} masuk antrean kurasi & pemodelan 3D Tim BALALA.`
+    });
   };
 
   const handleDeleteProduct = (productId: string) => {
@@ -1545,6 +1702,7 @@ export default function App() {
       setProducts(prev => prev.filter(p => p.id !== productId));
       setFavorites(prev => prev.filter(id => id !== productId));
       setCart(prev => prev.filter(item => item.product.id !== productId));
+      deleteCatalogProductInDb(productId);
       if (selectedProduct?.id === productId) {
         setView('home');
         setSelectedProduct(null);
@@ -1552,18 +1710,132 @@ export default function App() {
     }
   };
 
-  const handleCurateProduct = (productId: string, action: 'approve' | 'reject') => {
-    setProducts(prev => prev.map(p => {
-      if (p.id === productId) {
-        return {
-          ...p,
-          status: action === 'approve' ? 'approved' : 'rejected'
-        };
-      }
-      return p;
-    }));
+  const handleDeleteProductDirect = (productId: string) => {
+    setProducts(prev => prev.filter(p => p.id !== productId));
+    setFavorites(prev => prev.filter(id => id !== productId));
+    setCart(prev => prev.filter(item => item.product.id !== productId));
+    deleteCatalogProductInDb(productId);
+    if (selectedProduct?.id === productId) {
+      setSelectedProduct(null);
+    }
+  };
 
+  const handleUpdateProduct = (productId: string, updates: Partial<Product>) => {
+    const existing = products.find(p => p.id === productId);
+    if (existing) {
+      upsertCatalogProductInDb({ ...existing, ...updates });
+    }
+    setProducts(prev => prev.map(p => (p.id === productId ? { ...p, ...updates } : p)));
+    if (selectedProduct?.id === productId) {
+      setSelectedProduct(prev => (prev ? { ...prev, ...updates } : prev));
+    }
+  };
+
+  const handleUpdateApplication = (appId: string, updates: Partial<MerchantApplication>) => {
+    setApplications(prev => prev.map(a => (a.id === appId ? { ...a, ...updates } : a)));
+    updateMerchantApplicationInDb(appId, updates);
+  };
+
+  const handleAddApplication = (newApp: MerchantApplication) => {
+    setApplications(prev => [newApp, ...prev]);
+    saveMerchantApplicationToDb(newApp);
+  };
+
+  const handleUpdateOrder = (orderId: string, updates: Partial<PlatformOrder>) => {
+    setOrders(prev => prev.map(o => (o.id === orderId ? { ...o, ...updates } : o)));
+    updatePlatformOrderInDb(orderId, updates);
+  };
+
+  const handleAddOrder = (newOrder: PlatformOrder) => {
+    setOrders(prev => [newOrder, ...prev]);
+    savePlatformOrderToDb(newOrder);
+  };
+
+  const handlePushNotification = (notif: { tag: string; tagColor: string; title: string; desc: string }) => {
+    setNotifications(prev => [
+      {
+        id: Date.now(),
+        ...notif,
+        unread: true
+      },
+      ...prev
+    ]);
+  };
+
+  const handleRecordCheckout = (payload: {
+    items: { product: Product; quantity: number }[];
+    phone: string;
+    address: string;
+    notes: string;
+    shippingCost: number;
+  }) => {
+    const newOrders: PlatformOrder[] = payload.items.map((item, idx) => {
+      const unitPrice = parseInt(item.product.price.replace(/[^0-9]/g, ''), 10) || 0;
+      const netPrice = unitPrice * item.quantity;
+      const matchedSeller =
+        applications.find(
+          a =>
+            a.status === 'approved' &&
+            ((item.product.sellerUid && a.applicantUid === item.product.sellerUid) ||
+              (item.product.sellerName &&
+                a.storeName.toLowerCase() === item.product.sellerName.toLowerCase()))
+        ) ||
+        applications.find(
+          a => a.status === 'approved' && a.culture.toLowerCase() === item.product.culture.toLowerCase()
+        );
+      const commissionRate: 1 | 2 = matchedSeller?.commissionRate || 2;
+      return {
+        id: `ord-${Date.now()}-${idx}`,
+        orderCode: `BLR-${String(orders.length + idx + 101)}`,
+        productId: item.product.id,
+        productName: item.quantity > 1 ? `${item.product.name} (x${item.quantity})` : item.product.name,
+        productCulture: item.product.culture,
+        productImage: item.product.image,
+        sellerUid: item.product.sellerUid || matchedSeller?.applicantUid,
+        sellerName: item.product.sellerName || matchedSeller?.storeName || getStoreName(item.product.culture),
+        buyerUid: auth.currentUser?.uid,
+        buyerName: googleUser?.name || `Pelanggan (${payload.phone})`,
+        buyerPhone: payload.phone,
+        shippingAddress: payload.address,
+        notes: payload.notes || undefined,
+        netPrice,
+        shippingCost: idx === 0 ? payload.shippingCost : 0,
+        commissionRate,
+        gatewayVariableFee: 12000,
+        status: 'awaiting_payment',
+        createdAt: new Date().toLocaleDateString('id-ID', {
+          day: '2-digit',
+          month: 'short',
+          year: 'numeric'
+        })
+      };
+    });
+
+    setOrders(prev => [...newOrders, ...prev]);
+    newOrders.forEach(order => {
+      savePlatformOrderToDb(order);
+    });
+
+    if (newOrders.length > 0) {
+      handlePushNotification({
+        tag: 'Pesanan Baru',
+        tagColor: 'teal',
+        title: `Pesanan Masuk (${newOrders.length} item)`,
+        desc: `Checkout dari ${newOrders[0].buyerName} menunggu verifikasi pembayaran oleh Admin Platform.`
+      });
+    }
+  };
+
+  const handleCurateProduct = (productId: string, action: 'approve' | 'reject') => {
+    const nextStatus = action === 'approve' ? ('approved' as const) : ('rejected' as const);
     const targetProduct = products.find(p => p.id === productId);
+    if (targetProduct) {
+      upsertCatalogProductInDb({ ...targetProduct, status: nextStatus });
+    }
+    setProducts(prev =>
+      prev.map(p => (p.id === productId ? { ...p, status: nextStatus } : p))
+    );
+
     if (targetProduct) {
       const newNotif = {
         id: Date.now(),
@@ -1604,26 +1876,7 @@ export default function App() {
     name: string;
     email: string;
     avatar: string;
-  } | null>(() => {
-    try {
-      const saved = localStorage.getItem('ballaar_google_user');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (parsed && typeof parsed.avatar === 'string' && (parsed.avatar.includes('unsplash.com') || parsed.avatar.includes('photo-'))) {
-          if (parsed.email === 'wirabuanamohalfinoor@gmail.com') {
-            parsed.avatar = 'https://ui-avatars.com/api/?name=Wirabuana+Mohalfinoor&background=13524D&color=FAF8F3&bold=true&size=150';
-          } else {
-            parsed.avatar = 'https://ui-avatars.com/api/?name=Tamu+Nusantara&background=A87F2D&color=FAF8F3&bold=true&size=150';
-          }
-          localStorage.setItem('ballaar_google_user', JSON.stringify(parsed));
-        }
-        return parsed;
-      }
-      return null;
-    } catch {
-      return null;
-    }
-  });
+  } | null>(initialStoredUser);
 
   useEffect(() => {
     if (googleUser) {
@@ -1632,6 +1885,190 @@ export default function App() {
       localStorage.removeItem('ballaar_google_user');
     }
   }, [googleUser]);
+
+  // Sync active Firebase auth session and directly open Admin Console if authorized
+  useEffect(() => {
+    const unsubscribe = subscribeAuthState((fbUser) => {
+      if (fbUser) {
+        setFirebaseUid(fbUser.uid);
+        const syncedUser = {
+          name: fbUser.displayName || 'Google User',
+          email: fbUser.email || '',
+          avatar: fbUser.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(fbUser.displayName || 'Google User')}&background=13524D&color=FAF8F3&bold=true&size=150`
+        };
+        setGoogleUser(syncedUser);
+        if (isAuthorizedPlatformAdmin(syncedUser.email) && !hasManualCatalogExitRef.current) {
+          setUserRole('platform_admin');
+          setShowSplash(false);
+          setView('platform_admin');
+        }
+      } else {
+        setFirebaseUid(null);
+      }
+    });
+    return () => unsubscribe();
+  }, []);
+
+  // Real-time Cloud Firestore subscriptions (only real records)
+  useEffect(() => {
+    if (!firebaseUid) return;
+    const isAdmin = isAuthorizedPlatformAdmin(googleUser?.email);
+    const unsub = subscribeMerchantApplications(
+      isAdmin,
+      firebaseUid,
+      (dbApps) => {
+        setApplications(dbApps);
+      },
+      googleUser?.email
+    );
+    return () => unsub();
+  }, [firebaseUid, googleUser?.email]);
+
+  useEffect(() => {
+    const isAdmin = Boolean(firebaseUid) && isAuthorizedPlatformAdmin(googleUser?.email);
+    const unsub = subscribeCatalogProducts(isAdmin, firebaseUid, (dbProds) => {
+      setProducts(() => {
+        const dbMap = new Map(dbProds.map(p => [p.id, p]));
+        const mergedBase = PRODUCTS.map(dp => {
+          const dbItem = dbMap.get(dp.id);
+          if (!dbItem) return dp;
+          return {
+            ...dp,
+            ...dbItem,
+            image: dp.image,
+            glbUrl: dbItem.glbUrl && !dbItem.glbUrl.startsWith('blob:') ? dbItem.glbUrl : dp.glbUrl,
+            usdzUrl: dbItem.usdzUrl && !dbItem.usdzUrl.startsWith('blob:') ? dbItem.usdzUrl : dp.usdzUrl
+          };
+        });
+        const extraFromDb = dbProds.filter(p => !PRODUCTS.some(dp => dp.id === p.id));
+        return [...extraFromDb, ...mergedBase];
+      });
+    });
+    return () => unsub();
+  }, [firebaseUid, googleUser?.email]);
+
+  useEffect(() => {
+    if (!firebaseUid) return;
+    const isAdmin = isAuthorizedPlatformAdmin(googleUser?.email);
+    const unsub = subscribePlatformOrders(isAdmin, firebaseUid, (dbOrders) => {
+      setOrders(dbOrders);
+    });
+    return () => unsub();
+  }, [firebaseUid, googleUser?.email]);
+
+  // Strict email guard for Platform Admin & Tim BALALA role
+  useEffect(() => {
+    if (!isAuthorizedPlatformAdmin(googleUser?.email) && userRole === 'platform_admin') {
+      setUserRole('user');
+    }
+  }, [googleUser, userRole]);
+
+  const handleAdminGoogleSignIn = async () => {
+    setIsAdminGoogleLoading(true);
+    try {
+      const user = await signInWithGoogle();
+      if (user) {
+        const loggedInUser = {
+          name: user.displayName || 'Google User',
+          email: user.email || '',
+          avatar: user.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.displayName || 'Google User')}&background=13524D&color=FAF8F3&bold=true&size=150`
+        };
+        setGoogleUser(loggedInUser);
+        if (isAuthorizedPlatformAdmin(loggedInUser.email)) {
+          hasManualCatalogExitRef.current = false;
+          setUserRole('platform_admin');
+          setShowSplash(false);
+          setView('platform_admin');
+        }
+      }
+    } catch (err) {
+      console.error('Google Admin Sign-In Error:', err);
+    } finally {
+      setIsAdminGoogleLoading(false);
+    }
+  };
+
+  const currentSellerApplication = googleUser
+    ? applications.find(
+        a =>
+          a.applicantEmail.toLowerCase() === googleUser.email.toLowerCase() &&
+          a.status === 'approved'
+      ) || null
+    : null;
+
+  const myMerchantApplication = googleUser
+    ? applications.find(
+        a => a.applicantEmail.toLowerCase() === googleUser.email.toLowerCase()
+      ) || null
+    : null;
+
+  const handleSubmitMerchantApplication = (data: {
+    storeName: string;
+    culture: string;
+    whatsapp: string;
+    address: string;
+    bio: string;
+  }) => {
+    if (!googleUser) return;
+    const normalizedEmail = googleUser.email.trim().toLowerCase();
+    const existingApp = applications.find(
+      a => a.applicantEmail.toLowerCase() === normalizedEmail
+    );
+    const newApp: MerchantApplication = {
+      id: existingApp?.id || `app-${Date.now()}`,
+      applicantUid: existingApp?.applicantUid || auth.currentUser?.uid,
+      applicantName: googleUser.name,
+      applicantEmail: normalizedEmail,
+      storeName: data.storeName,
+      culture: data.culture,
+      address: data.address,
+      bio: data.bio || '-',
+      whatsapp: data.whatsapp || undefined,
+      commissionRate: existingApp?.commissionRate || 2,
+      submittedAt: new Date().toLocaleDateString('id-ID', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric'
+      }),
+      status: 'pending'
+    };
+
+    const nextApps = [
+      ...applications.filter(a => a.applicantEmail.toLowerCase() !== normalizedEmail),
+      newApp
+    ];
+    setApplications(nextApps);
+    localStorage.setItem('ballaar_global_merchant_applications', JSON.stringify(nextApps));
+    localStorage.setItem('ballaar_merchant_status', 'pending');
+    localStorage.setItem('ballaar_merchant_store_name', newApp.storeName);
+    localStorage.setItem('ballaar_merchant_store_culture', newApp.culture);
+    localStorage.setItem('ballaar_merchant_address', newApp.address);
+    localStorage.setItem('ballaar_merchant_bio', newApp.bio);
+    saveMerchantApplicationToDb(newApp);
+
+    handlePushNotification({
+      tag: 'Pendaftaran Mitra',
+      tagColor: 'amber',
+      title: `Pengajuan Sanggar: ${newApp.storeName}`,
+      desc: `Pendaftaran mitra UMKM "${newApp.storeName}" telah dikirim ke Admin Platform untuk ditinjau.`
+    });
+  };
+
+  const handleAdminLogout = () => {
+    firebaseLogout().catch((err) => console.error('Error signing out:', err));
+    hasManualCatalogExitRef.current = false;
+    setGoogleUser(null);
+    setUserRole('user');
+    setApplications([]);
+    setOrders([]);
+    setView('home');
+    localStorage.removeItem('ballaar_google_user');
+    localStorage.removeItem('ballaar_merchant_status');
+    localStorage.removeItem('ballaar_merchant_store_name');
+    localStorage.removeItem('ballaar_merchant_store_culture');
+    localStorage.removeItem('ballaar_merchant_bio');
+    localStorage.removeItem('ballaar_merchant_address');
+  };
 
   // Drawers open state togglers
   const [isCartOpen, setIsCartOpen] = useState(false);
@@ -1781,7 +2218,11 @@ export default function App() {
   // Filtered listing based on interactive tab and search query text
   const filteredProducts = products.filter(p => {
     const isApproved = !p.status || p.status === 'approved';
-    const isMyProductUnderEvaluation = userRole === 'admin' && p.culture.toLowerCase() === adminCulture.toLowerCase() && (p.status === 'pending' || p.status === 'rejected');
+    const isMyProductUnderEvaluation =
+      userRole === 'admin' &&
+      ((firebaseUid && p.sellerUid === firebaseUid) ||
+        p.culture.toLowerCase() === adminCulture.toLowerCase()) &&
+      (p.status === 'pending' || p.status === 'needs_revision' || p.status === 'in_3d_process' || p.status === 'rejected');
     
     if (!isApproved && !isMyProductUnderEvaluation) {
       return false;
@@ -1859,17 +2300,65 @@ export default function App() {
               onFavoritesClick={() => setIsFavoritesOpen(true)}
               onCartClick={() => setIsCartOpen(true)}
               onHomeClick={() => { setView('home'); setCategoryFilter('all'); setSearchQuery(''); }}
+              onOpenPlatformAdmin={() => {
+                if (isAuthorizedPlatformAdmin(googleUser?.email)) {
+                  setUserRole('platform_admin');
+                  setView('platform_admin');
+                }
+              }}
+              onOpenSellerDashboard={() => {
+                if (currentSellerApplication || userRole === 'admin') {
+                  setUserRole('admin');
+                  if (currentSellerApplication) {
+                    setAdminCulture(currentSellerApplication.culture);
+                  }
+                  setView('seller_console');
+                }
+              }}
               cartCount={cart.reduce((s, i) => s + i.quantity, 0)}
               favoritesCount={favorites.length}
               unreadCount={unreadCount}
               googleUser={googleUser}
               userRole={userRole}
+              hasActiveOverlay={isCartOpen || isFavoritesOpen || isProfileOpen || isNotificationsOpen}
             />
             
             <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 py-5 pb-14">
               <HeroBanner onLearnMore={() => setIsHeritageModalOpen(true)} />
 
-              {/* Admin Dashboard Control Card */}
+              {/* Platform Admin & Tim BALALA Quick Entry Card on Home (Restricted to wirabuanamohalfinoor@gmail.com) */}
+              {isAuthorizedPlatformAdmin(googleUser?.email) && (
+                <motion.div
+                  initial={{ opacity: 0, y: -8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="liquid-glass-dark text-[#FAF8F3] rounded-3xl p-5 sm:p-6 mb-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border border-[#D7B463]/30"
+                >
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2 text-xs text-[#D7B463] font-semibold">
+                      <Shield size={14} />
+                      <span>Admin Platform &amp; Tim Teknis 3D (Tim BALALA)</span>
+                    </div>
+                    <h2 className="text-lg sm:text-xl font-serif font-bold text-[#FAF8F3]">
+                      Operasional Pusat, Workshop 3D/AR &amp; Transaksi Balla AR
+                    </h2>
+                    <p className="text-xs text-[#E5EFED]/80 max-w-2xl leading-relaxed">
+                      Akses khusus terverifikasi untuk {googleUser?.email}. Kelola antrean aset 3D (.glb/.usdz), verifikasi UMKM, katalog global, dan komisi 1%–2%.
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setUserRole('platform_admin');
+                      setView('platform_admin');
+                    }}
+                    className="liquid-glass-gold hover:brightness-105 active:scale-95 text-[#0A2926] font-extrabold px-5 py-3 rounded-full text-xs flex items-center gap-2 cursor-pointer self-stretch md:self-auto justify-center transition-all shrink-0 whitespace-nowrap"
+                  >
+                    <Sparkles size={14} />
+                    <span>Buka Console Admin &amp; 3D</span>
+                  </button>
+                </motion.div>
+              )}
+
+              {/* Seller / UMKM Dashboard Quick Control Card */}
               {userRole === 'admin' && (
                 <motion.div
                   initial={{ opacity: 0, y: -10 }}
@@ -1878,38 +2367,47 @@ export default function App() {
                 >
                   <div className="space-y-1.5">
                     <div className="flex items-center gap-2 text-xs text-[#D7B463] font-semibold">
-                      <span>Dasbor Pengrajin Aktif</span>
+                      <span>Dasbor Penjual / UMKM Pengrajin</span>
                       <span aria-hidden="true">·</span>
-                      <span className="text-[#F7EFDB]">{adminCulture}</span>
+                      <span className="text-[#F7EFDB]">{currentSellerApplication?.culture || adminCulture}</span>
                     </div>
                     <h2 className="text-xl font-serif font-bold tracking-tight text-[#FAF8F3]">
-                      Panel {getStoreName(adminCulture)}
+                      Panel {currentSellerApplication?.storeName || getStoreName(adminCulture)}
                     </h2>
                     <p className="text-xs text-[#E5EFED]/80 max-w-2xl leading-relaxed">
-                      Kelola karya seni kerajinan Anda. Tambahkan produk pusaka baru atau kelola koleksi yang terdaftar di bawah sanggar Anda.
+                      Kelola karya seni kerajinan Anda. Ajukan produk pusaka baru untuk dimodelkan 3D oleh Tim BALALA serta proses pesanan masuk.
                     </p>
                     
                     <div className="flex gap-6 mt-4 pt-4 border-t border-[#D7B463]/20">
                       <div>
-                        <p className="text-[11px] text-[#E5EFED]/70 font-medium">Koleksi Terdaftar</p>
+                        <p className="text-[11px] text-[#E5EFED]/70 font-medium">Produk Sanggar</p>
                         <p className="text-base font-extrabold tabular-nums text-[#D7B463] mt-0.5">
-                          {products.filter(p => p.culture.toLowerCase() === adminCulture.toLowerCase()).length} <span className="text-xs font-sans text-[#E5EFED]/80 font-normal">Karya Adat</span>
+                          {products.filter(p => (firebaseUid && p.sellerUid ? p.sellerUid === firebaseUid : p.sellerName === (currentSellerApplication?.storeName || getStoreName(adminCulture)))).length} <span className="text-xs font-sans text-[#E5EFED]/80 font-normal">Karya Adat</span>
                         </p>
                       </div>
                       <div>
-                        <p className="text-[11px] text-[#E5EFED]/70 font-medium">Status Layanan</p>
-                        <p className="text-xs font-bold text-[#9ED4C8] mt-1">Sanggar Terbuka</p>
+                        <p className="text-[11px] text-[#E5EFED]/70 font-medium">Status Mitra</p>
+                        <p className="text-xs font-bold text-[#9ED4C8] mt-1">Terverifikasi</p>
                       </div>
                     </div>
                   </div>
                   
-                  <button
-                    onClick={() => setIsAddProductModalOpen(true)}
-                    className="liquid-glass-gold hover:brightness-105 active:scale-95 text-[#0A2926] font-extrabold px-6 py-3.5 rounded-full text-xs flex items-center gap-2 cursor-pointer self-stretch md:self-auto justify-center transition-all shrink-0 whitespace-nowrap"
-                  >
-                    <Plus size={15} className="stroke-[2.5]" />
-                    <span>Tambah Produk Baru</span>
-                  </button>
+                  <div className="flex flex-col sm:flex-row gap-2.5 self-stretch md:self-auto shrink-0">
+                    <button
+                      onClick={() => setView('seller_console')}
+                      className="liquid-glass-pill hover:bg-[#FAF8F3] active:scale-95 text-[#10423E] font-bold px-5 py-3 rounded-full text-xs flex items-center gap-2 cursor-pointer justify-center transition-all whitespace-nowrap"
+                    >
+                      <Store size={15} />
+                      <span>Buka Dasbor Penjual</span>
+                    </button>
+                    <button
+                      onClick={() => setIsAddProductModalOpen(true)}
+                      className="liquid-glass-gold hover:brightness-105 active:scale-95 text-[#0A2926] font-extrabold px-6 py-3 rounded-full text-xs flex items-center gap-2 cursor-pointer justify-center transition-all whitespace-nowrap"
+                    >
+                      <Plus size={15} className="stroke-[2.5]" />
+                      <span>Tambah Produk Baru</span>
+                    </button>
+                  </div>
                 </motion.div>
               )}
 
@@ -2047,7 +2545,7 @@ export default function App() {
                                   </span>
                                   <button
                                     onClick={() => {
-                                      setProducts(prev => prev.map(item => item.id === p.id ? { ...item, status: 'pending' } : item));
+                                      handleUpdateProduct(p.id, { status: 'pending' });
                                     }}
                                     className="px-2.5 py-1.5 rounded-lg border border-white/20 hover:bg-white/10 text-[#FAF8F3] transition-colors cursor-pointer text-[10px] font-bold"
                                     title="Evaluasi Ulang"
@@ -2069,20 +2567,6 @@ export default function App() {
               
               {/* Product Grid Area */}
               <div id="katalog-pilihan" className="mb-10 scroll-mt-24">
-                <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-2 mb-6 border-b border-[#D7B463]/20 pb-4">
-                  <div>
-                    <div className="flex items-center gap-2.5 flex-wrap">
-                      <h3 className="text-lg sm:text-xl font-bold text-[#10423E] font-serif leading-tight">
-                        Koleksi Pilihan {categoryFilter !== 'all' ? `Adat ${categoryFilter.charAt(0).toUpperCase() + categoryFilter.slice(1)}` : ''}
-                      </h3>
-                      <span className="text-xs text-[#5C6F6B] font-semibold tabular-nums">
-                        · {filteredProducts.length} Karya
-                      </span>
-                    </div>
-                    <p className="text-xs text-[#5C6F6B] mt-1">Warisan peradaban dengan kualitas konstruksi modern premium</p>
-                  </div>
-                </div>
-                
                 {/* Responsive Liquid Glass Grid */}
                 {filteredProducts.length === 0 ? (
                   <div className="py-16 text-center liquid-glass rounded-3xl p-6">
@@ -2114,20 +2598,6 @@ export default function App() {
                   </div>
                 )}
               </div>
-
-              {/* Clean Footer */}
-              <footer className="liquid-glass-subtle rounded-2xl px-6 py-4 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-[#445754]">
-                <p className="font-serif font-semibold text-[#10423E]">Balla AR — Galeri Furnitur Warisan Sulawesi Selatan</p>
-                <div className="flex items-center gap-4">
-                  <button onClick={() => setIsHeritageModalOpen(true)} className="hover:text-[#13524D] font-medium cursor-pointer transition-colors">
-                    Kamus Budaya
-                  </button>
-                  <span aria-hidden="true" className="text-[#D7B463]/60">·</span>
-                  <button onClick={() => setIsProfileOpen(true)} className="hover:text-[#13524D] font-medium cursor-pointer transition-colors">
-                    Akun &amp; Mitra Sanggar
-                  </button>
-                </div>
-              </footer>
             </main>
           </motion.div>
         )}
@@ -2149,6 +2619,86 @@ export default function App() {
             onAddToCart={() => handleAddToCart(selectedProduct)}
           />
         )}
+
+        {view === 'platform_admin' && (
+          <motion.div
+            key="platform_admin"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            <PlatformAdminConsole
+              googleUser={googleUser}
+              onSignInWithGoogle={handleAdminGoogleSignIn}
+              onLogout={handleAdminLogout}
+              isGoogleLoading={isAdminGoogleLoading}
+              onExitConsole={() => {
+                hasManualCatalogExitRef.current = true;
+                setView('home');
+              }}
+              products={products}
+              onUpdateProduct={handleUpdateProduct}
+              onDeleteProductDirect={handleDeleteProductDirect}
+              onOpenAddProduct={() => setIsAddProductModalOpen(true)}
+              applications={applications}
+              onUpdateApplication={handleUpdateApplication}
+              onAddApplication={handleAddApplication}
+              orders={orders}
+              onUpdateOrder={handleUpdateOrder}
+              onAddOrder={handleAddOrder}
+              onPushNotification={handlePushNotification}
+            />
+          </motion.div>
+        )}
+        
+        {view === 'seller_console' && (
+          <motion.div
+            key="seller_console"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            <SellerDashboardConsole
+              googleUser={googleUser}
+              storeProfile={currentSellerApplication}
+              adminCulture={currentSellerApplication?.culture || adminCulture}
+              products={products}
+              orders={orders}
+              firebaseUid={firebaseUid}
+              onOpenAddProduct={() => setIsAddProductModalOpen(true)}
+              onUpdateProduct={handleUpdateProduct}
+              onDeleteProductDirect={handleDeleteProductDirect}
+              onUpdateOrder={handleUpdateOrder}
+              onExitConsole={() => setView('home')}
+              onLogout={handleAdminLogout}
+            />
+          </motion.div>
+        )}
+
+        {view === 'merchant_register' && (
+          <motion.div
+            key="merchant_register"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            <MerchantRegistrationPage
+              googleUser={googleUser}
+              existingApplication={myMerchantApplication}
+              onSubmitApplication={handleSubmitMerchantApplication}
+              onOpenSellerDashboard={() => {
+                setUserRole('admin');
+                if (myMerchantApplication) {
+                  setAdminCulture(myMerchantApplication.culture);
+                }
+                setView('seller_console');
+              }}
+              onBackToHome={() => setView('home')}
+              onSignInWithGoogle={handleAdminGoogleSignIn}
+              isGoogleLoading={isAdminGoogleLoading}
+            />
+          </motion.div>
+        )}
         
       </AnimatePresence>
 
@@ -2162,6 +2712,7 @@ export default function App() {
             onUpdateQuantity={handleUpdateQuantity}
             onRemoveItem={handleRemoveCartItem}
             onClearCart={handleClearCart}
+            onRecordCheckout={handleRecordCheckout}
           />
         )}
 
@@ -2189,6 +2740,20 @@ export default function App() {
             setAdminCulture={setAdminCulture}
             googleUser={googleUser}
             setGoogleUser={setGoogleUser}
+            applications={applications}
+            setApplications={setApplications}
+            onOpenPlatformAdmin={(verifiedEmail) => {
+              if (isAuthorizedPlatformAdmin(verifiedEmail ?? googleUser?.email)) {
+                hasManualCatalogExitRef.current = false;
+                setUserRole('platform_admin');
+                setShowSplash(false);
+                setView('platform_admin');
+              }
+            }}
+            onOpenMerchantRegistration={() => {
+              setIsProfileOpen(false);
+              setView('merchant_register');
+            }}
           />
         )}
 

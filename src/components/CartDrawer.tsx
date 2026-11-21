@@ -24,6 +24,13 @@ interface CartDrawerProps {
   onUpdateQuantity: (id: string, delta: number) => void;
   onRemoveItem: (id: string) => void;
   onClearCart: () => void;
+  onRecordCheckout?: (payload: {
+    items: CartItem[];
+    phone: string;
+    address: string;
+    notes: string;
+    shippingCost: number;
+  }) => void;
 }
 
 const parsePrice = (priceStr: string): number => {
@@ -40,7 +47,8 @@ export default function CartDrawer({
   cartItems,
   onUpdateQuantity,
   onRemoveItem,
-  onClearCart
+  onClearCart,
+  onRecordCheckout
 }: CartDrawerProps) {
   const [checkoutStep, setCheckoutStep] = useState<'idle' | 'loading' | 'success'>('idle');
   const [address, setAddress] = useState('');
@@ -61,9 +69,16 @@ export default function CartDrawer({
     if (!phone || !address) return;
     
     setCheckoutStep('loading');
+    onRecordCheckout?.({
+      items: cartItems,
+      phone: phone.trim(),
+      address: address.trim(),
+      notes: notes.trim(),
+      shippingCost
+    });
     setTimeout(() => {
       setCheckoutStep('success');
-    }, 1800);
+    }, 800);
   };
 
   const handleWhatsAppCheckout = () => {
