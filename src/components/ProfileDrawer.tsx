@@ -6,6 +6,7 @@ import {
   updateMerchantApplicationInDb
 } from '../firebase';
 import Logo from './Logo';
+import PWAInstallButton from './PWAInstallButton';
 import { 
   X, 
   User, 
@@ -709,6 +710,8 @@ export default function ProfileDrawer({
 
               </div>
             )}
+
+            <PWAInstallButton />
 
             {/* Creative Credit Footers */}
             <div className="liquid-glass-subtle p-4 rounded-2xl text-[11px] text-[#10423E] text-center leading-relaxed flex items-center justify-center gap-2">
