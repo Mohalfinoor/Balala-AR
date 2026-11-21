@@ -166,7 +166,9 @@ export function subscribeMerchantApplications(
     return onSnapshot(
       collection(db, path),
       snapshot => {
-        onData(snapshot.docs.map(mapMerchantAppDoc));
+        const byId = new Map<string, MerchantApplication>();
+        snapshot.docs.map(mapMerchantAppDoc).forEach(a => byId.set(a.id, a));
+        onData(Array.from(byId.values()));
       },
       error => {
         handleFirestoreError(error, OperationType.LIST, path);
@@ -338,7 +340,9 @@ export function subscribeCatalogProducts(
     return onSnapshot(
       collection(db, path),
       snapshot => {
-        onData(snapshot.docs.map(mapDoc));
+        const byId = new Map<string, Product>();
+        snapshot.docs.map(mapDoc).forEach(p => byId.set(p.id, p));
+        onData(Array.from(byId.values()));
       },
       error => {
         handleFirestoreError(error, OperationType.LIST, path);
@@ -526,7 +530,9 @@ export function subscribePlatformOrders(
     return onSnapshot(
       collection(db, path),
       snapshot => {
-        onData(snapshot.docs.map(mapPlatformOrderDoc));
+        const byId = new Map<string, PlatformOrder>();
+        snapshot.docs.map(mapPlatformOrderDoc).forEach(o => byId.set(o.id, o));
+        onData(Array.from(byId.values()));
       },
       error => {
         handleFirestoreError(error, OperationType.LIST, path);

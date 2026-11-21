@@ -1669,7 +1669,11 @@ export default function App() {
           (dp) => !updatedParsed.some((up) => up.id === dp.id)
         );
 
-        return [...updatedParsed, ...missingDefaults];
+        const deduped = new Map<string, Product>();
+        [...updatedParsed, ...missingDefaults].forEach(p => {
+          if (!deduped.has(p.id)) deduped.set(p.id, p);
+        });
+        return Array.from(deduped.values());
       }
       return PRODUCTS;
     } catch {
@@ -1809,7 +1813,7 @@ export default function App() {
       sellerUid: auth.currentUser?.uid,
       sellerName: sellerStoreName
     };
-    setProducts(prev => [newProduct, ...prev]);
+    setProducts(prev => [newProduct, ...prev.filter(p => p.id !== newProduct.id)]);
     saveCatalogProductToDb(newProduct);
     handlePushNotification({
       tag: 'Pengajuan Produk Baru',
@@ -1859,7 +1863,7 @@ export default function App() {
   };
 
   const handleAddApplication = (newApp: MerchantApplication) => {
-    setApplications(prev => [newApp, ...prev]);
+    setApplications(prev => [newApp, ...prev.filter(a => a.id !== newApp.id)]);
     saveMerchantApplicationToDb(newApp);
   };
 
@@ -1869,19 +1873,23 @@ export default function App() {
   };
 
   const handleAddOrder = (newOrder: PlatformOrder) => {
-    setOrders(prev => [newOrder, ...prev]);
+    setOrders(prev => [newOrder, ...prev.filter(o => o.id !== newOrder.id)]);
     savePlatformOrderToDb(newOrder);
   };
 
   const handlePushNotification = (notif: { tag: string; tagColor: string; title: string; desc: string }) => {
-    setNotifications(prev => [
-      {
-        id: Date.now(),
-        ...notif,
-        unread: true
-      },
-      ...prev
-    ]);
+    setNotifications(prev => {
+      const maxId = prev.reduce((max, item) => Math.max(max, item.id), 0);
+      const nextId = Math.max(Date.now(), maxId + 1);
+      return [
+        {
+          id: nextId,
+          ...notif,
+          unread: true
+        },
+        ...prev
+      ];
+    });
   };
 
   const handleRecordCheckout = (payload: {
@@ -1959,17 +1967,14 @@ export default function App() {
     );
 
     if (targetProduct) {
-      const newNotif = {
-        id: Date.now(),
+      handlePushNotification({
         tag: action === 'approve' ? 'Kurasi Adat ✔' : 'Kurasi Adat ✕',
         tagColor: action === 'approve' ? 'teal' : 'rose',
         title: action === 'approve' ? `Karya Disetujui: ${targetProduct.name}` : `Karya Ditangguhkan: ${targetProduct.name}`,
         desc: action === 'approve' 
           ? `Produk seni hias "${targetProduct.name}" dari Suku ${targetProduct.culture} dinyatakan OTENTIK oleh Kurasi Adat Balla AR & resmi dirilis ke galeri publik.` 
           : `Produk "${targetProduct.name}" Suku ${targetProduct.culture} ditangguhkan oleh komite kurator untuk revisi nilai filosofisnya.`,
-        unread: true
-      };
-      setNotifications(prev => [newNotif, ...prev]);
+      });
     }
   };
 
@@ -2065,7 +2070,9 @@ export default function App() {
             usdzUrl: isRemoteAssetUrl(dbItem.usdzUrl) ? dbItem.usdzUrl : dp.usdzUrl
           };
         });
-        const extraFromDb = dbProds.filter(p => !PRODUCTS.some(dp => dp.id === p.id));
+        const extraFromDb = Array.from(dbMap.values()).filter(
+          p => !PRODUCTS.some(dp => dp.id === p.id)
+        );
         return [...extraFromDb, ...mergedBase];
       });
     });
@@ -2356,6 +2363,18 @@ export default function App() {
     setView('ar');
   };
 
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    if (view === 'details' || view === 'ar') {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [view]);
+
   const handleBack = () => {
     if (view === 'ar' && previousView === 'details') {
       setView('details');
@@ -2432,13 +2451,14 @@ export default function App() {
         )}
       </AnimatePresence>
 
-      <AnimatePresence mode="wait">
-        {view === 'home' && (
+      <AnimatePresence>
+        {(view === 'home' || view === 'details' || view === 'ar') && (
           <motion.div 
             key="home"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
+            transition={{ duration: 0.16 }}
             className="w-full flex flex-col min-h-screen"
           >
             <Header 
@@ -2469,7 +2489,14 @@ export default function App() {
               unreadCount={unreadCount}
               googleUser={googleUser}
               userRole={userRole}
-              hasActiveOverlay={isCartOpen || isFavoritesOpen || isProfileOpen || isNotificationsOpen}
+              hasActiveOverlay={
+                isCartOpen ||
+                isFavoritesOpen ||
+                isProfileOpen ||
+                isNotificationsOpen ||
+                view === 'details' ||
+                view === 'ar'
+              }
             />
             
             <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 py-5 pb-14">
@@ -2751,24 +2778,6 @@ export default function App() {
           </motion.div>
         )}
 
-        {view === 'ar' && (
-          <ARView key="ar" product={selectedProduct} onBack={handleBack} />
-        )}
-
-        {view === 'details' && selectedProduct && (
-          <ProductDetailView 
-            key="details" 
-            product={selectedProduct} 
-            onBack={() => setView('home')} 
-            onAR={() => {
-              handleARClick(null, selectedProduct);
-            }}
-            isFavorite={favorites.includes(selectedProduct.id)}
-            onToggleFavorite={() => handleToggleFavorite(selectedProduct.id)}
-            onAddToCart={() => handleAddToCart(selectedProduct)}
-          />
-        )}
-
         {view === 'platform_admin' && (
           <motion.div
             key="platform_admin"
@@ -2879,10 +2888,31 @@ export default function App() {
         
       </AnimatePresence>
 
+      {/* --- Product Detail & AR Overlays (mounted above Home so Back is instant) --- */}
+      <AnimatePresence>
+        {view === 'ar' && (
+          <ARView key="ar" product={selectedProduct} onBack={handleBack} />
+        )}
+
+        {view === 'details' && selectedProduct && (
+          <ProductDetailView 
+            key="details" 
+            product={selectedProduct} 
+            onBack={() => setView('home')} 
+            onAR={() => {
+              handleARClick(null, selectedProduct);
+            }}
+            isFavorite={favorites.includes(selectedProduct.id)}
+            onToggleFavorite={() => handleToggleFavorite(selectedProduct.id)}
+            onAddToCart={() => handleAddToCart(selectedProduct)}
+          />
+        )}
+      </AnimatePresence>
+
       {/* --- Drawers and Modals Overlays --- */}
       <AnimatePresence>
         {isCartOpen && (
-          <CartDrawer 
+          <CartDrawer
             isOpen={isCartOpen}
             onClose={() => setIsCartOpen(false)}
             cartItems={cart}
@@ -2894,7 +2924,7 @@ export default function App() {
         )}
 
         {isFavoritesOpen && (
-          <FavoritesDrawer 
+          <FavoritesDrawer
             isOpen={isFavoritesOpen}
             onClose={() => setIsFavoritesOpen(false)}
             favorites={favorites}
@@ -2906,7 +2936,7 @@ export default function App() {
         )}
 
         {isProfileOpen && (
-          <ProfileDrawer 
+          <ProfileDrawer
             isOpen={isProfileOpen}
             onClose={() => setIsProfileOpen(false)}
             favoritesCount={favorites.length}
@@ -2944,18 +2974,18 @@ export default function App() {
           />
         )}
 
-        <Suspense fallback={null}>
-          {isHeritageModalOpen && (
-            <HeritageModal 
+        {isHeritageModalOpen && (
+          <Suspense key="heritage-modal-suspense" fallback={null}>
+            <HeritageModal
               isOpen={isHeritageModalOpen}
               onClose={() => setIsHeritageModalOpen(false)}
             />
-          )}
-        </Suspense>
+          </Suspense>
+        )}
 
         {/* Notifications Modal/Drawer Overlay */}
         {isNotificationsOpen && (
-          <div className="fixed inset-0 z-[200] overflow-hidden">
+          <div key="notifications-drawer" className="fixed inset-0 z-[200] overflow-hidden">
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -3105,16 +3135,16 @@ export default function App() {
           </div>
         )}
 
-        <Suspense fallback={null}>
-          {isAddProductModalOpen && (
+        {isAddProductModalOpen && (
+          <Suspense key="add-product-modal-suspense" fallback={null}>
             <AddProductModal
               isOpen={isAddProductModalOpen}
               onClose={() => setIsAddProductModalOpen(false)}
               adminCulture={adminCulture}
               onAddProduct={handleAddProduct}
             />
-          )}
-        </Suspense>
+          </Suspense>
+        )}
       </AnimatePresence>
     </div>
   );
