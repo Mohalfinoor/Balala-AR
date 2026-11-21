@@ -42,6 +42,8 @@ interface ProfileDrawerProps {
   applications?: MerchantApplication[];
   setApplications?: React.Dispatch<React.SetStateAction<MerchantApplication[]>>;
   onOpenPlatformAdmin?: (verifiedEmail?: string) => void;
+  onOpenSellerDashboard?: (culture?: string) => void;
+  onResetManualExit?: () => void;
   onOpenMerchantRegistration?: () => void;
 }
 
@@ -84,6 +86,8 @@ export default function ProfileDrawer({
   applications: externalApplications,
   setApplications: setExternalApplications,
   onOpenPlatformAdmin,
+  onOpenSellerDashboard,
+  onResetManualExit,
   onOpenMerchantRegistration
 }: ProfileDrawerProps) {
   const [copiedVoucher, setCopiedVoucher] = useState<string | null>(null);
@@ -180,6 +184,7 @@ export default function ProfileDrawer({
           avatar: user.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.displayName || 'Google User')}&background=13524D&color=FAF8F3&bold=true&size=150`
         };
         setGoogleUser(loggedInUser);
+        onResetManualExit?.();
         
         // Strictly restrict Platform Admin & Tim BALALA access ONLY to wirabuanamohalfinoor@gmail.com
         if (isAuthorizedPlatformAdmin(loggedInUser.email)) {
@@ -187,7 +192,19 @@ export default function ProfileDrawer({
           onClose();
           onOpenPlatformAdmin?.(loggedInUser.email);
         } else {
-          setUserRole('user');
+          const matchedApproved = applications.find(
+            a =>
+              a.applicantEmail.toLowerCase() === loggedInUser.email.toLowerCase() &&
+              a.status === 'approved'
+          );
+          if (matchedApproved) {
+            setUserRole('admin');
+            setAdminCulture(matchedApproved.culture);
+            onClose();
+            onOpenSellerDashboard?.(matchedApproved.culture);
+          } else {
+            setUserRole('user');
+          }
         }
       }
     } catch (err: any) {
@@ -263,6 +280,7 @@ export default function ProfileDrawer({
 
   const handleLogoutEntirely = () => {
     firebaseLogout().catch(err => console.error("Error signing out: ", err));
+    onResetManualExit?.();
     setGoogleUser(null);
     setUserRole('user');
     setMerchantStatus('none');

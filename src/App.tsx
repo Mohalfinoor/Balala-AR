@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { Suspense, useState, useEffect, useRef } from 'react';
 import { 
   Search, 
   Menu, 
@@ -58,18 +58,19 @@ import phinisiUsdz from './assets/images/Lemari-Ukir-Phinisi-v1.usdz';
 import buffetBugisGlb from './assets/images/Buffet-Ukir-Kaligrafi-v1.glb';
 import buffetBugisUsdz from './assets/images/Buffet-Ukir-Kaligrafi-v1.usdz';
 
-// --- Custom Modular Drawers & Modals ---
+// --- Custom Modular Drawers & Lazy Consoles ---
 import Logo from './components/Logo';
 import CartDrawer from './components/CartDrawer';
 import FavoritesDrawer from './components/FavoritesDrawer';
 import ProfileDrawer from './components/ProfileDrawer';
-import HeritageModal from './components/HeritageModal';
-import AddProductModal from './components/AddProductModal';
-import ARSnapshotModal from './components/ARSnapshotModal';
-import PlatformAdminConsole from './components/PlatformAdminConsole';
-import SellerDashboardConsole from './components/SellerDashboardConsole';
-import MerchantRegistrationPage from './components/MerchantRegistrationPage';
 import { captureARSnapshot, CapturedSnapshotResult } from './utils/arSnapshot';
+
+const HeritageModal = React.lazy(() => import('./components/HeritageModal'));
+const AddProductModal = React.lazy(() => import('./components/AddProductModal'));
+const ARSnapshotModal = React.lazy(() => import('./components/ARSnapshotModal'));
+const PlatformAdminConsole = React.lazy(() => import('./components/PlatformAdminConsole'));
+const SellerDashboardConsole = React.lazy(() => import('./components/SellerDashboardConsole'));
+const MerchantRegistrationPage = React.lazy(() => import('./components/MerchantRegistrationPage'));
 import {
   auth,
   signInWithGoogle,
@@ -299,6 +300,20 @@ const getAbsoluteUrl = (url?: string) => {
   return `${origin}/${cleanUrl}`;
 };
 
+const prefetchedModels = new Set<string>();
+const prefetchModelUrl = (rawUrl?: string) => {
+  if (typeof document === 'undefined' || !rawUrl) return;
+  const url = getAbsoluteUrl(rawUrl);
+  if (!url || url.startsWith('blob:') || prefetchedModels.has(url)) return;
+  prefetchedModels.add(url);
+  const link = document.createElement('link');
+  link.rel = 'prefetch';
+  link.as = 'fetch';
+  link.href = url;
+  link.crossOrigin = 'anonymous';
+  document.head.appendChild(link);
+};
+
 // --- ProductDetailView ---
 const ProductDetailView = ({ 
   product, 
@@ -318,6 +333,9 @@ const ProductDetailView = ({
 }) => {
   const ModelViewer = 'model-viewer' as any;
   const modelViewerRef = useRef<any>(null);
+  const [modelLoaded, setModelLoaded] = useState(false);
+  const [modelProgress, setModelProgress] = useState(0);
+  const [modelError, setModelError] = useState<string | null>(null);
   const [isCapturing, setIsCapturing] = useState(false);
   const [showFlash, setShowFlash] = useState(false);
   const [snapshotError, setSnapshotError] = useState<string | null>(null);
@@ -335,6 +353,39 @@ const ProductDetailView = ({
       revokeSnapshotUrls(snapshotResult);
     };
   }, [snapshotResult]);
+
+  useEffect(() => {
+    setModelLoaded(false);
+    setModelProgress(0);
+    setModelError(null);
+    const el = modelViewerRef.current;
+    if (!el) return;
+    if (el.loaded) {
+      setModelLoaded(true);
+      setModelProgress(100);
+      return;
+    }
+    const handleProgress = (e: any) => {
+      const pct = Math.round((e?.detail?.totalProgress || 0) * 100);
+      setModelProgress(pct);
+    };
+    const handleLoad = () => {
+      setModelLoaded(true);
+      setModelProgress(100);
+      setModelError(null);
+    };
+    const handleError = () => {
+      setModelError('Gagal memuat model 3D. Periksa koneksi internet Anda.');
+    };
+    el.addEventListener('progress', handleProgress);
+    el.addEventListener('load', handleLoad);
+    el.addEventListener('error', handleError);
+    return () => {
+      el.removeEventListener('progress', handleProgress);
+      el.removeEventListener('load', handleLoad);
+      el.removeEventListener('error', handleError);
+    };
+  }, [product.id, product.glbUrl]);
 
   const handleCaptureSnapshot = async () => {
     if (!modelViewerRef.current || isCapturing) return;
@@ -378,6 +429,9 @@ const ProductDetailView = ({
               ref={modelViewerRef}
               src={getAbsoluteUrl(product.glbUrl || '')}
               ios-src={getAbsoluteUrl(product.usdzUrl || '')}
+              poster={product.image}
+              loading="eager"
+              reveal="auto"
               alt={product.name}
               ar
               ar-modes="webxr scene-viewer quick-look"
@@ -408,11 +462,37 @@ const ProductDetailView = ({
                 <Maximize2 size={14} />
                 <span>Lihat di Ruangan (AR)</span>
               </button>
-              <div slot="poster" className="absolute inset-0 flex flex-col items-center justify-center bg-[#FAF8F3]/70 backdrop-blur-md gap-3">
-                <div className="w-8 h-8 rounded-full border-2 border-[#13524D] border-t-transparent animate-spin" />
-                <span className="text-[11px] font-semibold text-[#445754]">Menyiapkan Model 3D...</span>
+              <div slot="poster" className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                <img
+                  src={product.image}
+                  alt={product.name}
+                  className="w-full h-full object-contain p-8 opacity-85"
+                />
+                <div className="absolute inset-0 flex items-center justify-center bg-[#FAF8F3]/35 backdrop-blur-[2px]">
+                  <div className="liquid-glass-pill px-4 py-2.5 rounded-full flex items-center gap-2.5 shadow-md">
+                    <div className="w-4 h-4 rounded-full border-2 border-[#13524D] border-t-transparent animate-spin shrink-0" />
+                    <span className="text-[11px] font-bold text-[#10423E] tabular-nums">
+                      {modelProgress > 0 ? `Menyiapkan Model 3D... ${modelProgress}%` : 'Menyiapkan Model 3D...'}
+                    </span>
+                  </div>
+                </div>
               </div>
             </ModelViewer>
+
+            {!modelLoaded && product.glbUrl && (
+              <div className="absolute top-16 left-1/2 -translate-x-1/2 z-40 pointer-events-none">
+                <div className="liquid-glass-pill px-3.5 py-1.5 rounded-full flex items-center gap-2 shadow-sm">
+                  <div className="w-3.5 h-3.5 rounded-full border-2 border-[#13524D] border-t-transparent animate-spin shrink-0" />
+                  <span className="text-[11px] font-semibold text-[#10423E] tabular-nums whitespace-nowrap">
+                    {modelError
+                      ? modelError
+                      : modelProgress > 0
+                      ? `Memuat 3D ${modelProgress}%`
+                      : 'Menyiapkan Model 3D...'}
+                  </span>
+                </div>
+              </div>
+            )}
 
             <AnimatePresence>
               {showFlash && (
@@ -579,7 +659,7 @@ const ProductDetailView = ({
       </ARLinkOrButton>
     </div>
 
-    <AnimatePresence>
+    <Suspense fallback={null}>
       {isSnapshotOpen && (
         <ARSnapshotModal
           isOpen={isSnapshotOpen}
@@ -589,7 +669,7 @@ const ProductDetailView = ({
           onRetake={() => setIsSnapshotOpen(false)}
         />
       )}
-    </AnimatePresence>
+    </Suspense>
   </motion.div>
  );
 };
@@ -602,6 +682,7 @@ const ARView = ({ product, onBack }: { product: Product | null; onBack: () => vo
   const streamRef = useRef<MediaStream | null>(null);
   
   const [modelLoaded, setModelLoaded] = useState(false);
+  const [modelProgress, setModelProgress] = useState(0);
   const [isCameraActive, setIsCameraActive] = useState(false);
   const [isWebXRActive, setIsWebXRActive] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
@@ -622,19 +703,41 @@ const ARView = ({ product, onBack }: { product: Product | null; onBack: () => vo
     };
   }, [snapshotResult]);
 
-  // Listen for WebXR AR status transitions inside <model-viewer>
+  // Listen for WebXR AR status, load, progress & error inside <model-viewer>
   useEffect(() => {
+    setModelLoaded(false);
+    setModelProgress(0);
     const el = modelViewerRef.current;
     if (!el) return;
+    if (el.loaded) {
+      setModelLoaded(true);
+      setModelProgress(100);
+    }
     const handleArStatus = (event: any) => {
       const status = event?.detail?.status;
       setIsWebXRActive(status === 'session-started' || status === 'object-placed');
     };
+    const handleProgress = (event: any) => {
+      setModelProgress(Math.round((event?.detail?.totalProgress || 0) * 100));
+    };
+    const handleLoad = () => {
+      setModelLoaded(true);
+      setModelProgress(100);
+    };
+    const handleError = () => {
+      setCameraError('Gagal mengunduh model 3D. Periksa koneksi internet Anda.');
+    };
     el.addEventListener('ar-status', handleArStatus);
+    el.addEventListener('progress', handleProgress);
+    el.addEventListener('load', handleLoad);
+    el.addEventListener('error', handleError);
     return () => {
       el.removeEventListener('ar-status', handleArStatus);
+      el.removeEventListener('progress', handleProgress);
+      el.removeEventListener('load', handleLoad);
+      el.removeEventListener('error', handleError);
     };
-  }, [product?.id]);
+  }, [product?.id, product?.glbUrl]);
 
   // Clean up camera stream on unmount
   const stopCameraStream = () => {
@@ -791,6 +894,9 @@ const ARView = ({ product, onBack }: { product: Product | null; onBack: () => vo
           ref={modelViewerRef}
           src={getAbsoluteUrl(product.glbUrl)}
           ios-src={getAbsoluteUrl(product.usdzUrl)}
+          poster={product.image}
+          loading="eager"
+          reveal="auto"
           alt={product.name}
           ar
           ar-modes="webxr scene-viewer quick-look"
@@ -803,7 +909,6 @@ const ARView = ({ product, onBack }: { product: Product | null; onBack: () => vo
           environment-image="neutral"
           style={{ width: '100%', height: '100%', background: 'transparent' }}
           className="w-full h-full outline-hidden"
-          onLoad={() => setModelLoaded(true)}
         >
           {/* Capture AR Snapshot Shutter Button (rendered inside model-viewer DOM overlay too) */}
           {modelLoaded && (
@@ -841,8 +946,10 @@ const ARView = ({ product, onBack }: { product: Product | null; onBack: () => vo
           {!modelLoaded && (
             <div slot="poster" className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-[#061311]/55 text-[#FAF8F3] z-20">
               <div className="w-9 h-9 rounded-full border-2 border-[#D7B463] border-t-transparent animate-spin" />
-              <span className="text-xs font-medium text-[#E5EFED]">
-                Menyiapkan Model Seni 3D {product.culture}...
+              <span className="text-xs font-medium text-[#E5EFED] tabular-nums">
+                {modelProgress > 0
+                  ? `Menyiapkan Model Seni 3D ${product.culture}... ${modelProgress}%`
+                  : `Menyiapkan Model Seni 3D ${product.culture}...`}
               </span>
             </div>
           )}
@@ -863,7 +970,7 @@ const ARView = ({ product, onBack }: { product: Product | null; onBack: () => vo
       </div>
 
       {/* Snapshot Preview & Social Media Share Modal */}
-      <AnimatePresence>
+      <Suspense fallback={null}>
         {isSnapshotOpen && (
           <ARSnapshotModal
             isOpen={isSnapshotOpen}
@@ -873,7 +980,7 @@ const ARView = ({ product, onBack }: { product: Product | null; onBack: () => vo
             onRetake={() => setIsSnapshotOpen(false)}
           />
         )}
-      </AnimatePresence>
+      </Suspense>
     </motion.div>
   );
 };
@@ -1364,6 +1471,8 @@ function ProductCard({
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.04, duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
       onClick={onClick}
+      onMouseEnter={() => prefetchModelUrl(product.glbUrl)}
+      onTouchStart={() => prefetchModelUrl(product.glbUrl)}
       className="liquid-glass-card rounded-3xl p-3 sm:p-3.5 cursor-pointer group flex flex-col justify-between"
     >
       <div>
@@ -1503,9 +1612,19 @@ const readStoredGoogleUser = (): { name: string; email: string; avatar: string }
 export default function App() {
   const initialStoredUser = readStoredGoogleUser();
   const initialIsPlatformAdmin = isAuthorizedPlatformAdmin(initialStoredUser?.email);
+  const initialIsApprovedSeller = (() => {
+    if (initialIsPlatformAdmin || !initialStoredUser) return false;
+    try {
+      return localStorage.getItem('ballaar_merchant_status') === 'approved';
+    } catch {
+      return false;
+    }
+  })();
 
-  const [showSplash, setShowSplash] = useState(!initialIsPlatformAdmin);
-  const [view, setView] = useState<View>(initialIsPlatformAdmin ? 'platform_admin' : 'home');
+  const [showSplash, setShowSplash] = useState(!initialIsPlatformAdmin && !initialIsApprovedSeller);
+  const [view, setView] = useState<View>(
+    initialIsPlatformAdmin ? 'platform_admin' : initialIsApprovedSeller ? 'seller_console' : 'home'
+  );
   const [previousView, setPreviousView] = useState<View>('home');
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [categoryFilter, setCategoryFilter] = useState('all');
@@ -1561,6 +1680,9 @@ export default function App() {
   const [userRole, setUserRole] = useState<UserRole>(() => {
     if (initialIsPlatformAdmin) {
       return 'platform_admin';
+    }
+    if (initialIsApprovedSeller) {
+      return 'admin';
     }
     try {
       const saved = localStorage.getItem('ballaar_user_role');
@@ -1926,6 +2048,9 @@ export default function App() {
 
   useEffect(() => {
     const isAdmin = Boolean(firebaseUid) && isAuthorizedPlatformAdmin(googleUser?.email);
+    const isRemoteAssetUrl = (url?: string) =>
+      Boolean(url && (url.startsWith('https://') || url.startsWith('http://') || url.startsWith('data:')));
+
     const unsub = subscribeCatalogProducts(isAdmin, firebaseUid, (dbProds) => {
       setProducts(() => {
         const dbMap = new Map(dbProds.map(p => [p.id, p]));
@@ -1936,8 +2061,8 @@ export default function App() {
             ...dp,
             ...dbItem,
             image: dp.image,
-            glbUrl: dbItem.glbUrl && !dbItem.glbUrl.startsWith('blob:') ? dbItem.glbUrl : dp.glbUrl,
-            usdzUrl: dbItem.usdzUrl && !dbItem.usdzUrl.startsWith('blob:') ? dbItem.usdzUrl : dp.usdzUrl
+            glbUrl: isRemoteAssetUrl(dbItem.glbUrl) ? dbItem.glbUrl : dp.glbUrl,
+            usdzUrl: isRemoteAssetUrl(dbItem.usdzUrl) ? dbItem.usdzUrl : dp.usdzUrl
           };
         });
         const extraFromDb = dbProds.filter(p => !PRODUCTS.some(dp => dp.id === p.id));
@@ -1963,11 +2088,36 @@ export default function App() {
     }
   }, [googleUser, userRole]);
 
+  // Automatically direct official approved UMKM partner accounts straight to Seller Dashboard
+  useEffect(() => {
+    if (!googleUser || isAuthorizedPlatformAdmin(googleUser.email)) return;
+    const approvedApp = applications.find(
+      a =>
+        a.applicantEmail.toLowerCase() === googleUser.email.toLowerCase() &&
+        a.status === 'approved'
+    );
+    if (approvedApp) {
+      localStorage.setItem('ballaar_merchant_status', 'approved');
+      localStorage.setItem('ballaar_merchant_store_name', approvedApp.storeName);
+      localStorage.setItem('ballaar_merchant_store_culture', approvedApp.culture);
+      localStorage.setItem('ballaar_merchant_address', approvedApp.address);
+      localStorage.setItem('ballaar_merchant_bio', approvedApp.bio);
+      if (!hasManualCatalogExitRef.current && view === 'home') {
+        setIsProfileOpen(false);
+        setUserRole('admin');
+        setAdminCulture(approvedApp.culture);
+        setShowSplash(false);
+        setView('seller_console');
+      }
+    }
+  }, [googleUser, applications, view]);
+
   const handleAdminGoogleSignIn = async () => {
     setIsAdminGoogleLoading(true);
     try {
       const user = await signInWithGoogle();
       if (user) {
+        hasManualCatalogExitRef.current = false;
         const loggedInUser = {
           name: user.displayName || 'Google User',
           email: user.email || '',
@@ -1975,7 +2125,6 @@ export default function App() {
         };
         setGoogleUser(loggedInUser);
         if (isAuthorizedPlatformAdmin(loggedInUser.email)) {
-          hasManualCatalogExitRef.current = false;
           setUserRole('platform_admin');
           setShowSplash(false);
           setView('platform_admin');
@@ -2627,27 +2776,35 @@ export default function App() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
           >
-            <PlatformAdminConsole
-              googleUser={googleUser}
-              onSignInWithGoogle={handleAdminGoogleSignIn}
-              onLogout={handleAdminLogout}
-              isGoogleLoading={isAdminGoogleLoading}
-              onExitConsole={() => {
-                hasManualCatalogExitRef.current = true;
-                setView('home');
-              }}
-              products={products}
-              onUpdateProduct={handleUpdateProduct}
-              onDeleteProductDirect={handleDeleteProductDirect}
-              onOpenAddProduct={() => setIsAddProductModalOpen(true)}
-              applications={applications}
-              onUpdateApplication={handleUpdateApplication}
-              onAddApplication={handleAddApplication}
-              orders={orders}
-              onUpdateOrder={handleUpdateOrder}
-              onAddOrder={handleAddOrder}
-              onPushNotification={handlePushNotification}
-            />
+            <Suspense
+              fallback={
+                <div className="min-h-screen bg-[#FAFAF9] flex items-center justify-center text-xs text-stone-500">
+                  Memuat Console Admin Platform...
+                </div>
+              }
+            >
+              <PlatformAdminConsole
+                googleUser={googleUser}
+                onSignInWithGoogle={handleAdminGoogleSignIn}
+                onLogout={handleAdminLogout}
+                isGoogleLoading={isAdminGoogleLoading}
+                onExitConsole={() => {
+                  hasManualCatalogExitRef.current = true;
+                  setView('home');
+                }}
+                products={products}
+                onUpdateProduct={handleUpdateProduct}
+                onDeleteProductDirect={handleDeleteProductDirect}
+                onOpenAddProduct={() => setIsAddProductModalOpen(true)}
+                applications={applications}
+                onUpdateApplication={handleUpdateApplication}
+                onAddApplication={handleAddApplication}
+                orders={orders}
+                onUpdateOrder={handleUpdateOrder}
+                onAddOrder={handleAddOrder}
+                onPushNotification={handlePushNotification}
+              />
+            </Suspense>
           </motion.div>
         )}
         
@@ -2658,20 +2815,31 @@ export default function App() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
           >
-            <SellerDashboardConsole
-              googleUser={googleUser}
-              storeProfile={currentSellerApplication}
-              adminCulture={currentSellerApplication?.culture || adminCulture}
-              products={products}
-              orders={orders}
-              firebaseUid={firebaseUid}
-              onOpenAddProduct={() => setIsAddProductModalOpen(true)}
-              onUpdateProduct={handleUpdateProduct}
-              onDeleteProductDirect={handleDeleteProductDirect}
-              onUpdateOrder={handleUpdateOrder}
-              onExitConsole={() => setView('home')}
-              onLogout={handleAdminLogout}
-            />
+            <Suspense
+              fallback={
+                <div className="min-h-screen bg-[#FAFAF9] flex items-center justify-center text-xs text-stone-500">
+                  Memuat Dasbor Mitra UMKM...
+                </div>
+              }
+            >
+              <SellerDashboardConsole
+                googleUser={googleUser}
+                storeProfile={currentSellerApplication}
+                adminCulture={currentSellerApplication?.culture || adminCulture}
+                products={products}
+                orders={orders}
+                firebaseUid={firebaseUid}
+                onOpenAddProduct={() => setIsAddProductModalOpen(true)}
+                onUpdateProduct={handleUpdateProduct}
+                onDeleteProductDirect={handleDeleteProductDirect}
+                onUpdateOrder={handleUpdateOrder}
+                onExitConsole={() => {
+                  hasManualCatalogExitRef.current = true;
+                  setView('home');
+                }}
+                onLogout={handleAdminLogout}
+              />
+            </Suspense>
           </motion.div>
         )}
 
@@ -2682,21 +2850,30 @@ export default function App() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
           >
-            <MerchantRegistrationPage
-              googleUser={googleUser}
-              existingApplication={myMerchantApplication}
-              onSubmitApplication={handleSubmitMerchantApplication}
-              onOpenSellerDashboard={() => {
-                setUserRole('admin');
-                if (myMerchantApplication) {
-                  setAdminCulture(myMerchantApplication.culture);
-                }
-                setView('seller_console');
-              }}
-              onBackToHome={() => setView('home')}
-              onSignInWithGoogle={handleAdminGoogleSignIn}
-              isGoogleLoading={isAdminGoogleLoading}
-            />
+            <Suspense
+              fallback={
+                <div className="min-h-screen bg-[#FAFAF9] flex items-center justify-center text-xs text-stone-500">
+                  Memuat Halaman Pendaftaran Mitra...
+                </div>
+              }
+            >
+              <MerchantRegistrationPage
+                googleUser={googleUser}
+                existingApplication={myMerchantApplication}
+                onSubmitApplication={handleSubmitMerchantApplication}
+                onOpenSellerDashboard={() => {
+                  hasManualCatalogExitRef.current = false;
+                  setUserRole('admin');
+                  if (myMerchantApplication) {
+                    setAdminCulture(myMerchantApplication.culture);
+                  }
+                  setView('seller_console');
+                }}
+                onBackToHome={() => setView('home')}
+                onSignInWithGoogle={handleAdminGoogleSignIn}
+                isGoogleLoading={isAdminGoogleLoading}
+              />
+            </Suspense>
           </motion.div>
         )}
         
@@ -2750,6 +2927,16 @@ export default function App() {
                 setView('platform_admin');
               }
             }}
+            onOpenSellerDashboard={(culture) => {
+              hasManualCatalogExitRef.current = false;
+              setUserRole('admin');
+              if (culture) setAdminCulture(culture);
+              setShowSplash(false);
+              setView('seller_console');
+            }}
+            onResetManualExit={() => {
+              hasManualCatalogExitRef.current = false;
+            }}
             onOpenMerchantRegistration={() => {
               setIsProfileOpen(false);
               setView('merchant_register');
@@ -2757,12 +2944,14 @@ export default function App() {
           />
         )}
 
-        {isHeritageModalOpen && (
-          <HeritageModal 
-            isOpen={isHeritageModalOpen}
-            onClose={() => setIsHeritageModalOpen(false)}
-          />
-        )}
+        <Suspense fallback={null}>
+          {isHeritageModalOpen && (
+            <HeritageModal 
+              isOpen={isHeritageModalOpen}
+              onClose={() => setIsHeritageModalOpen(false)}
+            />
+          )}
+        </Suspense>
 
         {/* Notifications Modal/Drawer Overlay */}
         {isNotificationsOpen && (
@@ -2916,14 +3105,16 @@ export default function App() {
           </div>
         )}
 
-        {isAddProductModalOpen && (
-          <AddProductModal
-            isOpen={isAddProductModalOpen}
-            onClose={() => setIsAddProductModalOpen(false)}
-            adminCulture={adminCulture}
-            onAddProduct={handleAddProduct}
-          />
-        )}
+        <Suspense fallback={null}>
+          {isAddProductModalOpen && (
+            <AddProductModal
+              isOpen={isAddProductModalOpen}
+              onClose={() => setIsAddProductModalOpen(false)}
+              adminCulture={adminCulture}
+              onAddProduct={handleAddProduct}
+            />
+          )}
+        </Suspense>
       </AnimatePresence>
     </div>
   );
