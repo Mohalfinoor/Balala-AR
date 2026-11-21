@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { Suspense, useState, useEffect, useRef } from 'react';
+import React, { Suspense, useState, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import { 
   Search, 
   Menu, 
@@ -412,17 +412,13 @@ const ProductDetailView = ({
   };
 
   return (
-    <motion.div 
-      initial={{ opacity: 0, scale: 0.98 }}
-      animate={{ opacity: 1, scale: 1 }}
-      exit={{ opacity: 0, scale: 0.98 }}
-      transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
-      className="fixed inset-0 z-[100] bg-[#0A2926]/40 backdrop-blur-xl overflow-y-auto no-scrollbar flex items-center justify-center p-0 md:p-6 lg:p-10"
+    <div 
+      className="fixed inset-0 z-[100] bg-[#F4F1EA] md:bg-[#0A2926]/80 overflow-y-auto no-scrollbar flex items-center justify-center p-0 md:p-6 lg:p-10"
     >
-      <div className="w-full max-w-5xl liquid-glass min-h-screen md:min-h-0 md:rounded-[32px] shadow-2xl relative overflow-hidden flex flex-col md:flex-row">
+      <div className="w-full max-w-5xl bg-[#FAF8F3] md:border md:border-white/90 min-h-screen md:min-h-0 md:rounded-[32px] shadow-2xl relative overflow-hidden flex flex-col md:flex-row">
         
         {/* Left Pane: Interactive 3D Showcase */}
-        <div className="relative h-[44vh] md:h-[620px] md:w-1/2 w-full bg-gradient-to-br from-[#EFECE4]/85 via-[#FAF8F3]/75 to-[#E5EFED]/70 flex-shrink-0 flex items-center justify-center overflow-hidden border-b md:border-b-0 md:border-r border-white/60">
+        <div className="relative h-[44vh] md:h-[620px] md:w-1/2 w-full bg-gradient-to-br from-[#EFECE4] via-[#FAF8F3] to-[#E5EFED] flex-shrink-0 flex items-center justify-center overflow-hidden border-b md:border-b-0 md:border-r border-[#D7B463]/20">
           <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(circle_at_50%_45%,rgba(19,82,77,0.09),transparent_68%)]" />
           <div className="w-full h-full relative" id="threeDContainer">
             <ModelViewer
@@ -437,10 +433,10 @@ const ProductDetailView = ({
               ar-modes="webxr scene-viewer quick-look"
               camera-controls
               auto-rotate
-              auto-rotate-delay="1500"
-              interaction-prompt="auto"
-              shadow-intensity="1.5"
-              shadow-softness="1"
+              auto-rotate-delay="2000"
+              interaction-prompt="none"
+              shadow-intensity="0.8"
+              shadow-softness="0.3"
               style={{ width: '100%', height: '100%', backgroundColor: 'transparent' }}
               className="w-full h-full outline-hidden"
             >
@@ -466,10 +462,11 @@ const ProductDetailView = ({
                 <img
                   src={product.image}
                   alt={product.name}
-                  className="w-full h-full object-contain p-8 opacity-85"
+                  decoding="async"
+                  className="w-full h-full object-contain p-8 opacity-90"
                 />
-                <div className="absolute inset-0 flex items-center justify-center bg-[#FAF8F3]/35 backdrop-blur-[2px]">
-                  <div className="liquid-glass-pill px-4 py-2.5 rounded-full flex items-center gap-2.5 shadow-md">
+                <div className="absolute inset-0 flex items-center justify-center bg-[#FAF8F3]/45">
+                  <div className="bg-[#FAF8F3]/95 border border-white px-4 py-2.5 rounded-full flex items-center gap-2.5 shadow-md">
                     <div className="w-4 h-4 rounded-full border-2 border-[#13524D] border-t-transparent animate-spin shrink-0" />
                     <span className="text-[11px] font-bold text-[#10423E] tabular-nums">
                       {modelProgress > 0 ? `Menyiapkan Model 3D... ${modelProgress}%` : 'Menyiapkan Model 3D...'}
@@ -481,7 +478,7 @@ const ProductDetailView = ({
 
             {!modelLoaded && product.glbUrl && (
               <div className="absolute top-16 left-1/2 -translate-x-1/2 z-40 pointer-events-none">
-                <div className="liquid-glass-pill px-3.5 py-1.5 rounded-full flex items-center gap-2 shadow-sm">
+                <div className="bg-[#FAF8F3]/95 border border-white px-3.5 py-1.5 rounded-full flex items-center gap-2 shadow-sm">
                   <div className="w-3.5 h-3.5 rounded-full border-2 border-[#13524D] border-t-transparent animate-spin shrink-0" />
                   <span className="text-[11px] font-semibold text-[#10423E] tabular-nums whitespace-nowrap">
                     {modelError
@@ -494,20 +491,12 @@ const ProductDetailView = ({
               </div>
             )}
 
-            <AnimatePresence>
-              {showFlash && (
-                <motion.div
-                  initial={{ opacity: 0.9 }}
-                  animate={{ opacity: 0 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.18 }}
-                  className="absolute inset-0 bg-[#FAF8F3] pointer-events-none z-50"
-                />
-              )}
-            </AnimatePresence>
+            {showFlash && (
+              <div className="absolute inset-0 bg-[#FAF8F3]/80 pointer-events-none z-50" />
+            )}
 
             {snapshotError && (
-              <div className="absolute top-16 left-4 right-4 z-50 px-3 py-2 rounded-xl bg-[#7C3238]/90 text-[#FAF8F3] text-[11px] font-semibold text-center shadow-lg">
+              <div className="absolute top-16 left-4 right-4 z-50 px-3 py-2 rounded-xl bg-[#7C3238]/95 text-[#FAF8F3] text-[11px] font-semibold text-center shadow-lg">
                 {snapshotError}
               </div>
             )}
@@ -518,14 +507,14 @@ const ProductDetailView = ({
             <button 
               onClick={onBack}
               aria-label="Kembali ke galeri"
-              className="w-10 h-10 rounded-full liquid-glass-pill flex items-center justify-center text-[#10423E] hover:bg-[#FAF8F3] transition-all cursor-pointer"
+              className="w-10 h-10 rounded-full bg-[#FAF8F3]/95 border border-white shadow-md flex items-center justify-center text-[#10423E] hover:bg-white active:scale-95 transition-transform cursor-pointer"
             >
               <ChevronLeft size={22} />
             </button>
             <button 
               onClick={onToggleFavorite}
               aria-label="Tandai favorit"
-              className="w-10 h-10 rounded-full liquid-glass-pill flex items-center justify-center text-[#445754] hover:bg-[#FAF8F3] transition-all cursor-pointer"
+              className="w-10 h-10 rounded-full bg-[#FAF8F3]/95 border border-white shadow-md flex items-center justify-center text-[#445754] hover:bg-white active:scale-95 transition-transform cursor-pointer"
             >
               <Heart size={18} className={isFavorite ? "fill-[#9E3F44] text-[#9E3F44]" : "hover:text-[#9E3F44] transition-colors"} />
             </button>
@@ -617,14 +606,13 @@ const ProductDetailView = ({
 
         {/* Action Panel for Desktop Detail View */}
         <div className="hidden md:flex flex-col gap-3 mt-6 pt-6 border-t border-[#D7B463]/20">
-          <motion.button 
+          <button 
             onClick={onAddToCart}
-            whileTap={{ scale: 0.98 }}
-            className="w-full liquid-glass-teal hover:brightness-110 text-[#FAF8F3] py-3.5 rounded-full font-bold flex items-center justify-center gap-2 cursor-pointer transition-all"
+            className="w-full liquid-glass-teal hover:brightness-110 active:scale-[0.98] text-[#FAF8F3] py-3.5 rounded-full font-bold flex items-center justify-center gap-2 cursor-pointer transition-all"
           >
             <ShoppingBag size={17} />
             <span>Masukkan ke Keranjang</span>
-          </motion.button>
+          </button>
           
           <ARLinkOrButton 
             product={product}
@@ -639,15 +627,14 @@ const ProductDetailView = ({
     </div>
 
     {/* Mobile Only Fixed Bottom Action Dock */}
-    <div className="fixed bottom-0 left-0 right-0 md:hidden liquid-glass border-t border-white/80 px-5 py-4 flex flex-col gap-2.5 z-50">
-      <motion.button 
+    <div className="fixed bottom-0 left-0 right-0 md:hidden bg-[#FAF8F3]/95 border-t border-[#D7B463]/25 shadow-[0_-8px_24px_-8px_rgba(10,41,38,0.12)] px-5 py-4 flex flex-col gap-2.5 z-50">
+      <button 
         onClick={onAddToCart}
-        whileTap={{ scale: 0.98 }}
-        className="w-full liquid-glass-teal text-[#FAF8F3] py-3 rounded-full font-bold text-xs flex items-center justify-center gap-2 cursor-pointer"
+        className="w-full liquid-glass-teal active:scale-[0.98] text-[#FAF8F3] py-3 rounded-full font-bold text-xs flex items-center justify-center gap-2 cursor-pointer transition-transform"
       >
         <ShoppingBag size={16} />
         <span>Masukkan ke Keranjang</span>
-      </motion.button>
+      </button>
       
       <ARLinkOrButton 
         product={product}
@@ -670,7 +657,7 @@ const ProductDetailView = ({
         />
       )}
     </Suspense>
-  </motion.div>
+  </div>
  );
 };
 
@@ -820,10 +807,7 @@ const ARView = ({ product, onBack }: { product: Product | null; onBack: () => vo
   };
 
   return (
-    <motion.div 
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
+    <div 
       className="fixed inset-0 w-full h-screen z-[200] bg-[#061311] overflow-hidden flex flex-col"
     >
       {/* Live Camera AR Feed OR Virtual Studio Stage */}
@@ -836,11 +820,7 @@ const ARView = ({ product, onBack }: { product: Product | null; onBack: () => vo
           className="absolute inset-0 w-full h-full object-cover z-0"
         />
       ) : (
-        <div className="absolute inset-0 z-0 bg-gradient-to-b from-[#0D2B28] via-[#091E1C] to-[#061311] pointer-events-none">
-          <div className="absolute top-[25%] left-1/2 -translate-x-1/2 w-[350px] h-[350px] bg-[#1B6861]/15 rounded-full blur-[100px]" />
-          <div className="absolute bottom-10 left-[20%] w-[250px] h-[250px] bg-[#C59B42]/10 rounded-full blur-[90px]" />
-          <div className="absolute bottom-0 inset-x-0 h-40 bg-radial from-[#FAF8F3]/5 to-transparent blur-[40px] opacity-20" />
-        </div>
+        <div className="absolute inset-0 z-0 bg-[radial-gradient(circle_at_50%_30%,rgba(27,104,97,0.28),transparent_58%),radial-gradient(circle_at_22%_82%,rgba(197,155,66,0.14),transparent_48%),linear-gradient(to_bottom,#0D2B28,#091E1C,#061311)] pointer-events-none" />
       )}
 
       {/* Top Header Overlay */}
@@ -956,17 +936,9 @@ const ARView = ({ product, onBack }: { product: Product | null; onBack: () => vo
         </ModelViewer>
 
         {/* Visual Camera Shutter Flash */}
-        <AnimatePresence>
-          {showFlash && (
-            <motion.div
-              initial={{ opacity: 0.9 }}
-              animate={{ opacity: 0 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.18 }}
-              className="fixed inset-0 bg-[#FAF8F3] pointer-events-none z-[240]"
-            />
-          )}
-        </AnimatePresence>
+        {showFlash && (
+          <div className="fixed inset-0 bg-[#FAF8F3]/80 pointer-events-none z-[240]" />
+        )}
       </div>
 
       {/* Snapshot Preview & Social Media Share Modal */}
@@ -981,7 +953,7 @@ const ARView = ({ product, onBack }: { product: Product | null; onBack: () => vo
           />
         )}
       </Suspense>
-    </motion.div>
+    </div>
   );
 };
 
@@ -1044,22 +1016,28 @@ const Header = ({
   // Follow on scroll down, hide when scrolling up (never hide while navbar is active)
   useEffect(() => {
     lastScrollYRef.current = typeof window !== 'undefined' ? Math.max(0, window.scrollY) : 0;
+    let rafPending = false;
 
     const handleScroll = () => {
-      const currentY = Math.max(0, window.scrollY);
-      const delta = currentY - lastScrollYRef.current;
+      if (rafPending) return;
+      rafPending = true;
+      requestAnimationFrame(() => {
+        rafPending = false;
+        const currentY = Math.max(0, window.scrollY);
+        const delta = currentY - lastScrollYRef.current;
 
-      if (isNavbarActive || currentY <= 24) {
-        setIsHeaderVisible(true);
-      } else if (delta > 6) {
-        setIsHeaderVisible(true);
-      } else if (delta < -6 && currentY > 48) {
-        setIsHeaderVisible(false);
-      }
+        if (isNavbarActive || currentY <= 24) {
+          setIsHeaderVisible(true);
+        } else if (delta > 6) {
+          setIsHeaderVisible(true);
+        } else if (delta < -6 && currentY > 48) {
+          setIsHeaderVisible(false);
+        }
 
-      if (Math.abs(delta) > 2) {
-        lastScrollYRef.current = currentY;
-      }
+        if (Math.abs(delta) > 2) {
+          lastScrollYRef.current = currentY;
+        }
+      });
     };
 
     window.addEventListener('scroll', handleScroll, { passive: true });
@@ -1338,18 +1316,15 @@ const Header = ({
 };
 
 // --- Hero Banner ---
-const HeroBanner = ({ onLearnMore }: { onLearnMore: () => void }) => (
+const HeroBanner = React.memo(({ onLearnMore }: { onLearnMore: () => void }) => (
   <div className="mb-8">
-    <motion.div 
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
-      className="liquid-glass rounded-[32px] p-1.5 sm:p-2"
-    >
+    <div className="liquid-glass rounded-[32px] p-1.5 sm:p-2">
       <div className="relative h-56 sm:h-72 md:h-80 lg:h-[360px] rounded-[26px] overflow-hidden group">
         <img 
           src={heroBallaShowcase} 
           alt="Interior Modern dengan Furnitur Ukir Adat Sulawesi Selatan" 
+          decoding="async"
+          fetchPriority="high"
           className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
           referrerPolicy="no-referrer"
         />
@@ -1361,28 +1336,27 @@ const HeroBanner = ({ onLearnMore }: { onLearnMore: () => void }) => (
             Ukir Nusantara di Ruang Modern <span className="italic font-normal text-[#F7EFDB]">Seni Falsafah Hidup</span>
           </h2>
           <div className="mt-6 flex flex-wrap items-center gap-3">
-            <motion.button 
+            <button 
               onClick={onLearnMore}
-              whileTap={{ scale: 0.96 }}
-              className="liquid-glass-pill text-[#10423E] hover:bg-[#FAF8F3] px-5 py-2.5 rounded-full text-xs font-bold w-fit transition-all cursor-pointer whitespace-nowrap"
+              className="liquid-glass-pill text-[#10423E] hover:bg-[#FAF8F3] active:scale-95 px-5 py-2.5 rounded-full text-xs font-bold w-fit transition-all cursor-pointer whitespace-nowrap"
             >
               Pelajari Warisan Ukir
-            </motion.button>
+            </button>
             <a 
               href="#katalog-pilihan"
-              className="text-[#FAF8F3]/95 hover:text-white text-xs font-semibold px-4 py-2.5 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-md border border-[#D7B463]/35 transition-all whitespace-nowrap"
+              className="text-[#FAF8F3]/95 hover:text-white text-xs font-semibold px-4 py-2.5 rounded-full bg-white/15 hover:bg-white/25 border border-[#D7B463]/35 transition-all whitespace-nowrap"
             >
               Lihat Koleksi
             </a>
           </div>
         </div>
       </div>
-    </motion.div>
+    </div>
   </div>
-);
+));
 
 // --- Culture Categories ---
-const CultureCategories = ({ 
+const CultureCategories = React.memo(({ 
   activeCategory, 
   onSelectCategory 
 }: { 
@@ -1414,11 +1388,10 @@ const CultureCategories = ({
         {CULTURES.map((culture) => {
           const isActive = activeCategory === culture.id;
           return (
-            <motion.button
+            <button
               key={culture.id}
               onClick={() => handleSelect(culture.id)}
-              whileTap={{ scale: 0.96 }}
-              className={`flex flex-col items-center gap-2 min-w-[82px] px-3 py-2 rounded-2xl transition-all cursor-pointer shrink-0 ${
+              className={`flex flex-col items-center gap-2 min-w-[82px] px-3 py-2 rounded-2xl active:scale-95 transition-all cursor-pointer shrink-0 ${
                 isActive ? 'bg-[#FAF8F3]/85 shadow-sm border border-[#D7B463]/35' : 'hover:bg-[#FAF8F3]/45'
               }`}
             >
@@ -1432,16 +1405,16 @@ const CultureCategories = ({
               <span className={`text-xs font-bold whitespace-nowrap transition-colors ${isActive ? 'text-[#10423E]' : 'text-[#445754]'}`}>
                 {culture.name}
               </span>
-            </motion.button>
+            </button>
           );
         })}
       </div>
     </div>
   );
-};
+});
 
 // --- ProductCard ---
-function ProductCard({ 
+const ProductCard = React.memo(function ProductCard({ 
   product, 
   index, 
   onARClick, 
@@ -1466,13 +1439,9 @@ function ProductCard({
   key?: string;
 }) {
   return (
-    <motion.div 
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: index * 0.04, duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+    <div 
       onClick={onClick}
       onMouseEnter={() => prefetchModelUrl(product.glbUrl)}
-      onTouchStart={() => prefetchModelUrl(product.glbUrl)}
       className="liquid-glass-card rounded-3xl p-3 sm:p-3.5 cursor-pointer group flex flex-col justify-between"
     >
       <div>
@@ -1480,6 +1449,8 @@ function ProductCard({
           <img 
             src={product.image} 
             alt={product.name} 
+            loading={index < 2 ? 'eager' : 'lazy'}
+            decoding="async"
             className="w-full h-full object-contain p-2.5 group-hover:scale-105 transition-transform duration-300"
             referrerPolicy="no-referrer"
           />
@@ -1560,9 +1531,9 @@ function ProductCard({
           )}
         </div>
       </div>
-    </motion.div>
+    </div>
   );
-}
+});
 
 
 
@@ -1621,7 +1592,14 @@ export default function App() {
     }
   })();
 
-  const [showSplash, setShowSplash] = useState(!initialIsPlatformAdmin && !initialIsApprovedSeller);
+  const [showSplash, setShowSplash] = useState(() => {
+    if (initialIsPlatformAdmin || initialIsApprovedSeller) return false;
+    try {
+      return !sessionStorage.getItem('ballaar_splash_seen');
+    } catch {
+      return false;
+    }
+  });
   const [view, setView] = useState<View>(
     initialIsPlatformAdmin ? 'platform_admin' : initialIsApprovedSeller ? 'seller_console' : 'home'
   );
@@ -1629,12 +1607,16 @@ export default function App() {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [categoryFilter, setCategoryFilter] = useState('all');
   const hasManualCatalogExitRef = useRef(false);
+  const homeScrollYRef = useRef(0);
 
   useEffect(() => {
     if (!showSplash) return;
+    try {
+      sessionStorage.setItem('ballaar_splash_seen', '1');
+    } catch {}
     const timer = setTimeout(() => {
       setShowSplash(false);
-    }, 2200);
+    }, 450);
     return () => clearTimeout(timer);
   }, [showSplash]);
 
@@ -2318,6 +2300,10 @@ export default function App() {
   };
 
   const handleProductClick = (product: Product) => {
+    if (view === 'home' && typeof window !== 'undefined') {
+      homeScrollYRef.current = window.scrollY;
+    }
+    prefetchModelUrl(product.glbUrl);
     setSelectedProduct(product);
     setPreviousView(view);
     setView('details');
@@ -2358,10 +2344,19 @@ export default function App() {
       }
     }
 
+    if (view === 'home' && typeof window !== 'undefined') {
+      homeScrollYRef.current = window.scrollY;
+    }
     setSelectedProduct(product);
     setPreviousView(view);
     setView('ar');
   };
+
+  useLayoutEffect(() => {
+    if (view === 'home' && typeof window !== 'undefined' && homeScrollYRef.current > 0) {
+      window.scrollTo({ top: homeScrollYRef.current, behavior: 'instant' as ScrollBehavior });
+    }
+  }, [view]);
 
   useEffect(() => {
     if (typeof document === 'undefined') return;
@@ -2384,43 +2379,44 @@ export default function App() {
   };
 
   // Filtered listing based on interactive tab and search query text
-  const filteredProducts = products.filter(p => {
-    const isApproved = !p.status || p.status === 'approved';
-    const isMyProductUnderEvaluation =
-      userRole === 'admin' &&
-      ((firebaseUid && p.sellerUid === firebaseUid) ||
-        p.culture.toLowerCase() === adminCulture.toLowerCase()) &&
-      (p.status === 'pending' || p.status === 'needs_revision' || p.status === 'in_3d_process' || p.status === 'rejected');
-    
-    if (!isApproved && !isMyProductUnderEvaluation) {
-      return false;
-    }
+  const filteredProducts = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+    return products.filter(p => {
+      const isApproved = !p.status || p.status === 'approved';
+      const isMyProductUnderEvaluation =
+        userRole === 'admin' &&
+        ((firebaseUid && p.sellerUid === firebaseUid) ||
+          p.culture.toLowerCase() === adminCulture.toLowerCase()) &&
+        (p.status === 'pending' || p.status === 'needs_revision' || p.status === 'in_3d_process' || p.status === 'rejected');
+      
+      if (!isApproved && !isMyProductUnderEvaluation) {
+        return false;
+      }
 
-    const matchesCategory = categoryFilter === 'all' || p.culture.toLowerCase() === categoryFilter;
-    const matchesSearch = searchQuery.trim() === '' || 
-      p.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-      p.culture.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      p.description.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesCategory && matchesSearch;
-  });
+      const matchesCategory = categoryFilter === 'all' || p.culture.toLowerCase() === categoryFilter;
+      const matchesSearch = query === '' || 
+        p.name.toLowerCase().includes(query) || 
+        p.culture.toLowerCase().includes(query) ||
+        p.description.toLowerCase().includes(query);
+      return matchesCategory && matchesSearch;
+    });
+  }, [products, userRole, firebaseUid, adminCulture, categoryFilter, searchQuery]);
+
+  const totalCartCount = useMemo(
+    () => cart.reduce((s, i) => s + i.quantity, 0),
+    [cart]
+  );
 
   return (
     <div className="min-h-screen liquid-canvas text-[#162624] font-sans antialiased relative overflow-x-clip">
-      {/* Ambient Liquid Glass Light Orbs */}
-      <div className="fixed inset-0 overflow-hidden pointer-events-none -z-10">
-        <div className="absolute -top-24 -right-16 w-[440px] h-[440px] bg-[#1B6861]/14 rounded-full blur-[90px] animate-liquid-drift" />
-        <div className="absolute top-[42%] -left-24 w-[380px] h-[380px] bg-[#C59B42]/14 rounded-full blur-[90px]" />
-        <div className="absolute -bottom-24 right-[20%] w-[420px] h-[420px] bg-[#13524D]/10 rounded-full blur-[100px]" />
-      </div>
-
       <AnimatePresence>
         {showSplash && (
           <motion.div
             key="splash"
             initial={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.5, ease: 'easeOut' }}
-            className="fixed inset-0 z-[10000] liquid-canvas backdrop-blur-xl flex flex-col items-center justify-between py-20 px-6"
+            transition={{ duration: 0.25, ease: 'easeOut' }}
+            className="fixed inset-0 z-[10000] liquid-canvas flex flex-col items-center justify-between py-20 px-6"
           >
             <div className="h-10" />
 
@@ -2451,15 +2447,9 @@ export default function App() {
         )}
       </AnimatePresence>
 
-      <AnimatePresence>
-        {(view === 'home' || view === 'details' || view === 'ar') && (
-          <motion.div 
-            key="home"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.16 }}
-            className="w-full flex flex-col min-h-screen"
+      {(view === 'home' || view === 'details' || view === 'ar') && (
+          <div 
+            className={`w-full flex-col min-h-screen ${view === 'details' || view === 'ar' ? 'hidden' : 'flex'}`}
           >
             <Header 
               searchQuery={searchQuery}
@@ -2484,7 +2474,7 @@ export default function App() {
                   setView('seller_console');
                 }
               }}
-              cartCount={cart.reduce((s, i) => s + i.quantity, 0)}
+              cartCount={totalCartCount}
               favoritesCount={favorites.length}
               unreadCount={unreadCount}
               googleUser={googleUser}
@@ -2775,16 +2765,11 @@ export default function App() {
                 )}
               </div>
             </main>
-          </motion.div>
+          </div>
         )}
 
         {view === 'platform_admin' && (
-          <motion.div
-            key="platform_admin"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-          >
+          <div>
             <Suspense
               fallback={
                 <div className="min-h-screen bg-[#FAFAF9] flex items-center justify-center text-xs text-stone-500">
@@ -2814,16 +2799,11 @@ export default function App() {
                 onPushNotification={handlePushNotification}
               />
             </Suspense>
-          </motion.div>
+          </div>
         )}
         
         {view === 'seller_console' && (
-          <motion.div
-            key="seller_console"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-          >
+          <div>
             <Suspense
               fallback={
                 <div className="min-h-screen bg-[#FAFAF9] flex items-center justify-center text-xs text-stone-500">
@@ -2849,16 +2829,11 @@ export default function App() {
                 onLogout={handleAdminLogout}
               />
             </Suspense>
-          </motion.div>
+          </div>
         )}
 
         {view === 'merchant_register' && (
-          <motion.div
-            key="merchant_register"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-          >
+          <div>
             <Suspense
               fallback={
                 <div className="min-h-screen bg-[#FAFAF9] flex items-center justify-center text-xs text-stone-500">
@@ -2883,31 +2858,26 @@ export default function App() {
                 isGoogleLoading={isAdminGoogleLoading}
               />
             </Suspense>
-          </motion.div>
-        )}
-        
-      </AnimatePresence>
-
-      {/* --- Product Detail & AR Overlays (mounted above Home so Back is instant) --- */}
-      <AnimatePresence>
-        {view === 'ar' && (
-          <ARView key="ar" product={selectedProduct} onBack={handleBack} />
+          </div>
         )}
 
-        {view === 'details' && selectedProduct && (
-          <ProductDetailView 
-            key="details" 
-            product={selectedProduct} 
-            onBack={() => setView('home')} 
-            onAR={() => {
-              handleARClick(null, selectedProduct);
-            }}
-            isFavorite={favorites.includes(selectedProduct.id)}
-            onToggleFavorite={() => handleToggleFavorite(selectedProduct.id)}
-            onAddToCart={() => handleAddToCart(selectedProduct)}
-          />
-        )}
-      </AnimatePresence>
+      {/* --- Product Detail & AR Overlays (instant unmount, no WebGL exit freeze) --- */}
+      {view === 'ar' && (
+        <ARView product={selectedProduct} onBack={handleBack} />
+      )}
+
+      {view === 'details' && selectedProduct && (
+        <ProductDetailView 
+          product={selectedProduct} 
+          onBack={() => setView('home')} 
+          onAR={() => {
+            handleARClick(null, selectedProduct);
+          }}
+          isFavorite={favorites.includes(selectedProduct.id)}
+          onToggleFavorite={() => handleToggleFavorite(selectedProduct.id)}
+          onAddToCart={() => handleAddToCart(selectedProduct)}
+        />
+      )}
 
       {/* --- Drawers and Modals Overlays --- */}
       <AnimatePresence>
